@@ -1,0 +1,76 @@
+{
+  "step": "7.5",
+  "session_id": "SBOM-20260409-sb01",
+  "generated_at": "2026-04-10T00:11:54.291329+00:00",
+  "pipeline_source": "backend",
+  "contract_version": "1.0.0",
+  "endpoint_count": 5,
+  "schema_count": 16,
+  "endpoints": [
+    {
+      "method": "POST",
+      "path": "/scans",
+      "operationId": "createScan",
+      "tag": "business-logic"
+    },
+    {
+      "method": "GET",
+      "path": "/scans/{scan_id}",
+      "operationId": "getScan",
+      "tag": "business-logic"
+    },
+    {
+      "method": "POST",
+      "path": "/sync",
+      "operationId": "syncNvdCache",
+      "tag": "orchestration"
+    },
+    {
+      "method": "GET",
+      "path": "/cache/status",
+      "operationId": "getCacheStatus",
+      "tag": "workflow-state"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "operationId": "getHealth",
+      "tag": "workflow-state"
+    }
+  ],
+  "schemas": [
+    "SbomFormat",
+    "Environment",
+    "Severity",
+    "DependencyType",
+    "DependencyRecord",
+    "VulnerabilityRecord",
+    "EnrichedVulnerability",
+    "VexStatement",
+    "SbomDocument",
+    "ScanRequest",
+    "SyncRequest",
+    "ScanResponse",
+    "SyncResponse",
+    "CacheStatusResponse",
+    "HealthResponse",
+    "ErrorResponse"
+  ],
+  "traceability": {
+    "business_endpoints_from": "step4_atdd_business.py (AC-1 through AC-12)",
+    "orchestration_endpoints_from": "step7_atdd_orchestration.py (ScanOrchestrator, NVDSyncOrchestrator, CLIOrchestrator)",
+    "entity_schemas_from": "step1b_mock_entities.json (ScanJob, DependencyInventory, VulnerabilityRecord)",
+    "error_patterns_from": "step7_atdd_orchestration.py (NVDSyncError, ScanJobValidator)",
+    "implementation_reference": "step9_tdd_green_phase_orchestration.py (ScanResult, SyncResult dataclasses)"
+  },
+  "output_files": [
+    "step7_5_api_contract.yaml",
+    "step7_5_api_contract.json",
+    "step7_5_pydantic_models.py",
+    "step7_5_typescript_types.ts",
+    "step7_5_contract_summary.md",
+    "step7_5_contract_metadata.json"
+  ],
+  "consume_mode": false,
+  "devil_advocate_status": "pending"
+}

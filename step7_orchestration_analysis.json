@@ -1,0 +1,164 @@
+{
+  "session_id": "SBOM-20260409-sb01",
+  "analysis_timestamp": "2026-04-09T21:59:35Z",
+  "orchestration_patterns": {
+    "workflow_sequences": {
+      "proposal_generation": [
+        "load_template",
+        "gather_client_data",
+        "generate_content",
+        "validate_quality",
+        "calculate_pricing",
+        "export_document"
+      ],
+      "template_creation": [
+        "define_structure",
+        "add_placeholders",
+        "validate_template",
+        "save_template"
+      ],
+      "error_recovery": [
+        "detect_failure",
+        "log_error",
+        "attempt_retry",
+        "fallback_action",
+        "notify_user"
+      ]
+    },
+    "state_management": {
+      "proposal_states": [
+        "draft",
+        "in_progress",
+        "under_review",
+        "approved",
+        "delivered",
+        "rejected"
+      ],
+      "state_transitions": {
+        "draft_to_in_progress": "start_generation",
+        "in_progress_to_under_review": "complete_generation",
+        "under_review_to_approved": "pass_quality_check",
+        "under_review_to_rejected": "fail_quality_check",
+        "approved_to_delivered": "export_and_send"
+      },
+      "state_persistence": "required",
+      "state_recovery": "checkpoint_based"
+    },
+    "component_coordination": {
+      "dependencies": {
+        "content_generator": ["template_manager", "client_data"],
+        "quality_validator": ["content_generator"],
+        "pricing_engine": ["template_manager", "client_data"],
+        "export_manager": ["content_generator", "pricing_engine"]
+      },
+      "data_flow": {
+        "template_to_content": ["template_structure", "merge_fields"],
+        "content_to_quality": ["generated_text", "metadata"],
+        "pricing_to_export": ["total_price", "breakdown"],
+        "quality_to_decision": ["scores", "pass_fail"]
+      },
+      "integration_points": [
+        "template_content_interface",
+        "content_quality_interface",
+        "pricing_export_interface",
+        "error_handler_interface"
+      ]
+    },
+    "error_handling": {
+      "failure_points": [
+        "database_connection",
+        "ai_model_timeout",
+        "template_not_found",
+        "validation_failure",
+        "export_failure"
+      ],
+      "recovery_strategies": {
+        "database_failure": "retry_with_backoff",
+        "ai_timeout": "fallback_to_template",
+        "template_missing": "use_default_template",
+        "validation_failure": "request_human_review",
+        "export_failure": "queue_for_retry"
+      },
+      "retry_policies": {
+        "max_retries": 3,
+        "backoff_strategy": "exponential",
+        "timeout_limits": "30_seconds"
+      }
+    },
+    "resource_management": {
+      "concurrent_operations": [
+        "content_generation_parallel_sections",
+        "multi_client_batch_processing",
+        "simultaneous_quality_checks"
+      ],
+      "resource_limits": {
+        "max_concurrent_proposals": 10,
+        "max_ai_calls_per_minute": 60,
+        "max_database_connections": 20
+      },
+      "coordination_requirements": [
+        "ai_model_queue_management",
+        "database_connection_pool",
+        "memory_usage_monitoring"
+      ]
+    },
+    "workflow_types": {
+      "sequential": [
+        "standard_proposal_generation",
+        "template_creation_flow",
+        "pricing_calculation_sequence"
+      ],
+      "parallel": [
+        "multi_section_content_generation",
+        "batch_proposal_processing",
+        "concurrent_quality_validation"
+      ],
+      "conditional": [
+        "client_type_based_routing",
+        "quality_threshold_branching",
+        "error_recovery_paths"
+      ],
+      "iterative": [
+        "retry_on_failure",
+        "quality_improvement_loop",
+        "progressive_enhancement"
+      ]
+    }
+  },
+  "orchestration_requirements": {
+    "must_support": [
+      "End-to-end proposal workflow",
+      "State persistence and recovery",
+      "Component coordination",
+      "Error handling and retry",
+      "Resource management",
+      "Parallel processing"
+    ],
+    "quality_metrics": [
+      "workflow_completion_rate",
+      "error_recovery_success_rate",
+      "state_consistency_score",
+      "resource_utilization_efficiency"
+    ],
+    "performance_requirements": {
+      "workflow_timeout": "5_minutes",
+      "state_transition_time": "1_second",
+      "recovery_time_objective": "30_seconds"
+    }
+  },
+  "test_categories_needed": [
+    "workflow_execution_tests",
+    "state_management_tests",
+    "component_coordination_tests",
+    "error_recovery_tests",
+    "resource_management_tests",
+    "performance_tests"
+  ],
+  "anti_hardcoding_strategy": {
+    "workflow_flexibility": "Support any sequence of components",
+    "state_extensibility": "Allow custom states and transitions",
+    "component_modularity": "Components can be added/removed",
+    "error_adaptability": "Handle new error types gracefully",
+    "resource_scalability": "Adjust to available resources"
+  }
+}

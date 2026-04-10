@@ -1,0 +1,747 @@
+openapi: 3.1.0
+
+info:
+  title: "SBOM POC Tool API"
+  version: "1.0.0"
+  description: |
+    REST API for the Software Bill of Materials (SBOM) POC Tool.
+    Exposes scan and NVD sync operations implemented in the orchestration layer
+    (ScanOrchestrator, NVDSyncOrchestrator). All vulnerability lookups use the
+    local NVD SQLite cache — no live NVD API calls are made at scan time.
+
+    Traceability:
+      - Business endpoints derived from: step4_atdd_business.py (AC-1 through AC-12)
+      - Orchestration endpoints derived from: step7_atdd_orchestration.py (ScanOrchestrator, NVDSyncOrchestrator, CLIOrchestrator)
+      - Entity schemas derived from: step1b_mock_entities.json (ScanJob, DependencyInventory, VulnerabilityRecord)
+      - Error patterns derived from: step7_atdd_orchestration.py (NVDSyncError, ScanJobValidator)
+
+servers:
+  - url: "{protocol}://{host}:{port}/api/v1"
+    description: "Parameterized base URL — configure via environment variables"
+    variables:
+      protocol:
+        default: http
+        enum: [http, https]
+        description: "Transport protocol"
+      host:
+        default: localhost
+        description: "Service hostname or IP"
+      port:
+        default: "8000"
+        description: "Service port"
+
+tags:
+  - name: business-logic
+    description: "SBOM scan operations — dependency discovery, vulnerability mapping, SBOM export"
+  - name: orchestration
+    description: "NVD cache synchronization — on-demand sync from a local Grype DB"
+  - name: workflow-state
+    description: "Cache and service health inspection"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Bearer token authentication (placeholder — not enforced in POC scope)"
+
+  schemas:
+
+    # ------------------------------------------------------------------
+    # Enumerations
+    # ------------------------------------------------------------------
+
+    SbomFormat:
+      type: string
+      enum: [cyclonedx, spdx]
+      description: "Output format for the generated SBOM document"
+      example: cyclonedx
+
+    Environment:
+      type: string
+      enum: [development, staging, production]
+      description: "Runtime environment context for the scanned repository"
+      example: development
+
+    Severity:
+      type: string
+      enum: [High, Medium, Low, Unknown]
+      description: |
+        CVSS v3.1 severity band.
+        High: score >= 7.0, Medium: 4.0–6.9, Low: < 4.0, Unknown: score absent.
+      example: High
+
+    DependencyType:
+      type: string
+      enum: [direct, transitive]
+      description: "Whether the dependency is directly declared or pulled transitively"
+      example: direct
+
+    # ------------------------------------------------------------------
+    # Component-level schemas (reusable entity schemas)
+    # ------------------------------------------------------------------
+
+    DependencyRecord:
+      type: object
+      required:
+        - name
+        - version
+        - purl
+        - dependency_type
+      properties:
+        name:
+          type: string
+          description: "Package name as it appears in the package registry"
+          example: langchain
+        version:
+          type: string
+          description: "Exact installed version"
+          example: "0.0.101"
+        purl:
+          type: string
+          description: "Package URL (PURL) in pkg:ecosystem/name@version format"
+          example: "pkg:pypi/langchain@0.0.101"
+        cpe:
+          type: string
+          nullable: true
+          description: "Common Platform Enumeration identifier (may be absent for some packages)"
+          example: "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"
+        supplier:
+          type: string
+          nullable: true
+          description: "Package maintainer or organization"
+          example: "LangChain, Inc."
+        dependency_type:
+          $ref: "#/components/schemas/DependencyType"
+        transitive_via:
+          type: string
+          nullable: true
+          description: "Name of the direct dependency that introduced this transitive dependency"
+          example: langchain
+
+    VulnerabilityRecord:
+      type: object
+      required:
+        - cve_id
+        - purl
+        - cvss_score
+        - severity
+      properties:
+        cve_id:
+          type: string
+          description: "CVE identifier"
+          example: "CVE-2023-34540"
+        purl:
+          type: string
+          description: "PURL of the affected package"
+          example: "pkg:pypi/langchain@0.0.101"
+        cpe:
+          type: string
+          nullable: true
+          description: "CPE identifier of the affected package"
+          example: "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"
+        cvss_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 10.0
+          description: "CVSS v3.1 base score"
+          example: 9.8
+        severity:
+          $ref: "#/components/schemas/Severity"
+        affected_version:
+          type: string
+          nullable: true
+          description: "Version range or exact version that is affected"
+          example: "0.0.101"
+        fixed_version:
+          type: string
+          nullable: true
+          description: "First version that resolves the vulnerability"
+          example: "0.0.247"
+        advisory_url:
+          type: string
+          format: uri
+          nullable: true
+          description: "Link to NVD advisory or vendor security advisory"
+          example: "https://nvd.nist.gov/vuln/detail/CVE-2023-34540"
+
+    EnrichedVulnerability:
+      allOf:
+        - $ref: "#/components/schemas/VulnerabilityRecord"
+        - type: object
+          properties:
+            upgrade_command:
+              type: string
+              nullable: true
+              description: "Package manager upgrade command derived from fixed_version"
+              example: "pip install langchain==0.0.247"
+            vex_filtered:
+              type: boolean
+              description: "True if this vulnerability was suppressed by a VEX statement"
+              default: false
+
+    VexStatement:
+      type: object
+      required:
+        - cve_id
+        - purl
+        - status
+      properties:
+        cve_id:
+          type: string
+          description: "CVE identifier this statement applies to"
+          example: "CVE-2023-34540"
+        purl:
+          type: string
+          description: "PURL of the package this statement covers"
+          example: "pkg:pypi/langchain@0.0.101"
+        status:
+          type: string
+          enum: [not_affected, affected, fixed, under_investigation]
+          description: "OpenVEX exploitability status"
+          example: not_affected
+        justification:
+          type: string
+          nullable: true
+          description: "OpenVEX justification for the status assessment"
+          example: vulnerable_code_not_in_execute_path
+
+    SbomDocument:
+      type: object
+      description: |
+        The serialized SBOM document. Structure depends on output_format:
+        - cyclonedx: CycloneDX 1.4 JSON (bomFormat, specVersion, components, vulnerabilities)
+        - spdx: SPDX 2.3 JSON (spdxVersion, dataLicense, packages, relationships)
+        This schema is intentionally open to accommodate the full CycloneDX / SPDX schemas.
+      additionalProperties: true
+      example:
+        bomFormat: CycloneDX
+        specVersion: "1.4"
+        serialNumber: "urn:uuid:a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        version: 1
+        components:
+          - type: library
+            name: langchain
+            version: "0.0.101"
+            purl: "pkg:pypi/langchain@0.0.101"
+        vulnerabilities:
+          - id: "CVE-2023-34540"
+            ratings:
+              - score: 9.8
+                severity: critical
+
+    # ------------------------------------------------------------------
+    # Request schemas
+    # ------------------------------------------------------------------
+
+    ScanRequest:
+      type: object
+      required:
+        - repo_path
+        - format
+        - env
+      properties:
+        repo_path:
+          type: string
+          description: |
+            Absolute or relative filesystem path to the repository to scan.
+            The path must exist on the server. Must not be empty.
+          example: "/repos/TaskMatrix"
+        format:
+          $ref: "#/components/schemas/SbomFormat"
+        env:
+          $ref: "#/components/schemas/Environment"
+        vex_statements:
+          type: array
+          items:
+            $ref: "#/components/schemas/VexStatement"
+          description: "Optional list of OpenVEX statements to apply before enrichment"
+          default: []
+
+    SyncRequest:
+      type: object
+      required:
+        - source_path
+      properties:
+        source_path:
+          type: string
+          description: "Filesystem path to the Grype vulnerability database to sync from"
+          example: "/var/grype/db/vulnerability.db"
+
+    # ------------------------------------------------------------------
+    # Response schemas
+    # ------------------------------------------------------------------
+
+    ScanResponse:
+      type: object
+      required:
+        - scan_id
+        - repo_name
+        - output_format
+        - dependencies
+        - active_vulns
+        - suppressed_vulns
+        - warnings
+        - sbom_document
+        - workflow_states_visited
+      properties:
+        scan_id:
+          type: string
+          description: "UUID identifying this scan run"
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        repo_name:
+          type: string
+          description: "Basename of the scanned repository path"
+          example: TaskMatrix
+        output_format:
+          $ref: "#/components/schemas/SbomFormat"
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/DependencyRecord"
+          description: "All deduplicated dependencies discovered in the repository"
+        active_vulns:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnrichedVulnerability"
+          description: "Vulnerabilities not suppressed by VEX statements, enriched with remediation"
+        suppressed_vulns:
+          type: array
+          items:
+            $ref: "#/components/schemas/VulnerabilityRecord"
+          description: "Vulnerabilities suppressed by a matching VEX statement"
+        warnings:
+          type: array
+          items:
+            type: string
+          description: |
+            Non-fatal warnings. Currently includes:
+            - Stale NVD cache warning (cache age > 7 days). Scan still completes.
+          example:
+            - "NVD cache is stale (last synced: 2026-04-01T10:00:00Z). Please run sbom-tool sync to refresh vulnerability data."
+        sbom_document:
+          $ref: "#/components/schemas/SbomDocument"
+        workflow_states_visited:
+          type: array
+          items:
+            type: string
+          description: "Ordered list of scan workflow state values traversed during this scan"
+          example:
+            - idle
+            - scanning_dependencies
+            - deduplicating_output
+            - matching_vulnerabilities
+            - filtering_vex
+            - enriching_remediation
+            - exporting_sbom
+
+    SyncResponse:
+      type: object
+      required:
+        - records_added
+        - records_updated
+        - synced_at
+        - source_path
+      properties:
+        records_added:
+          type: integer
+          minimum: 0
+          description: "Number of new vulnerability records inserted into the local cache"
+          example: 1247
+        records_updated:
+          type: integer
+          minimum: 0
+          description: "Number of existing vulnerability records refreshed"
+          example: 83
+        synced_at:
+          type: string
+          format: date-time
+          description: "ISO 8601 timestamp of when the sync completed"
+          example: "2026-04-09T10:00:00Z"
+        source_path:
+          type: string
+          description: "Filesystem path of the source Grype DB that was synced"
+          example: "/var/grype/db/vulnerability.db"
+        sync_log:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: "Optional internal sync log with per-source statistics"
+
+    CacheStatusResponse:
+      type: object
+      required:
+        - is_stale
+        - record_count
+      properties:
+        last_synced_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "ISO 8601 timestamp of the most recent successful NVD sync. Null if never synced."
+          example: "2026-04-09T10:00:00Z"
+        age_days:
+          type: number
+          format: float
+          nullable: true
+          description: "Age of the cache in days since last sync. Null if never synced."
+          example: 0.0
+        is_stale:
+          type: boolean
+          description: "True if cache age exceeds 7 days or has never been synced"
+          example: false
+        record_count:
+          type: integer
+          minimum: 0
+          description: "Total number of vulnerability records in the local NVD cache"
+          example: 82451
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, down]
+          description: "Overall service health status"
+          example: ok
+        version:
+          type: string
+          description: "Deployed application version"
+          example: "1.0.0"
+        cache_status:
+          $ref: "#/components/schemas/CacheStatusResponse"
+          description: "Current NVD cache health summary"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: "Machine-readable error code"
+          example: INVALID_REPO_PATH
+        message:
+          type: string
+          description: "Human-readable error description"
+          example: "Repository path does not exist: '/repos/missing'"
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: "Optional structured context (field name, received value, etc.)"
+
+# ------------------------------------------------------------------
+# Paths
+# ------------------------------------------------------------------
+
+paths:
+
+  /scans:
+    post:
+      operationId: createScan
+      summary: "Trigger a new SBOM scan"
+      description: |
+        Runs the full SBOM scan pipeline against the specified repository:
+        1. Validates job parameters (ScanJobValidator)
+        2. Checks NVD cache staleness (NVDCacheManager)
+        3. Normalizes and deduplicates raw tool output (OSSToolAdapter)
+        4. Maps vulnerabilities via PURL/CPE cache lookup (VulnerabilityMapper)
+        5. Applies VEX suppression (VEXFilter)
+        6. Enriches active vulnerabilities with remediation data (RemediationEnricher)
+        7. Serializes to CycloneDX 1.4 or SPDX 2.3 JSON (CycloneDXSerializer / SPDXSerializer)
+
+        A stale NVD cache does NOT abort the scan — the response warnings field will
+        contain a stale-cache notice and the sbom_document is still produced.
+      tags: [business-logic]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanRequest"
+            examples:
+              cyclonedx_scan:
+                summary: "CycloneDX scan of TaskMatrix repository"
+                value:
+                  repo_path: "/repos/TaskMatrix"
+                  format: cyclonedx
+                  env: development
+                  vex_statements: []
+              spdx_with_vex:
+                summary: "SPDX scan with a VEX suppression statement"
+                value:
+                  repo_path: "/repos/handson-ml"
+                  format: spdx
+                  env: production
+                  vex_statements:
+                    - cve_id: "CVE-2023-34540"
+                      purl: "pkg:pypi/langchain@0.0.101"
+                      status: not_affected
+                      justification: vulnerable_code_not_in_execute_path
+      responses:
+        "200":
+          description: "Scan completed successfully. Check warnings for non-fatal notices."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResponse"
+              examples:
+                cyclonedx_result:
+                  summary: "Scan result with HIGH vulnerability"
+                  value:
+                    scan_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    repo_name: TaskMatrix
+                    output_format: cyclonedx
+                    dependencies:
+                      - name: langchain
+                        version: "0.0.101"
+                        purl: "pkg:pypi/langchain@0.0.101"
+                        cpe: "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"
+                        supplier: "LangChain, Inc."
+                        dependency_type: direct
+                        transitive_via: null
+                    active_vulns:
+                      - cve_id: "CVE-2023-34540"
+                        purl: "pkg:pypi/langchain@0.0.101"
+                        cvss_score: 9.8
+                        severity: High
+                        fixed_version: "0.0.247"
+                        advisory_url: "https://nvd.nist.gov/vuln/detail/CVE-2023-34540"
+                        upgrade_command: "pip install langchain==0.0.247"
+                        vex_filtered: false
+                    suppressed_vulns: []
+                    warnings: []
+                    sbom_document:
+                      bomFormat: CycloneDX
+                      specVersion: "1.4"
+                    workflow_states_visited:
+                      - idle
+                      - scanning_dependencies
+                      - deduplicating_output
+                      - matching_vulnerabilities
+                      - filtering_vex
+                      - enriching_remediation
+                      - exporting_sbom
+        "422":
+          description: |
+            Validation error. Triggered when:
+            - repo_path is empty or refers to a non-existent directory
+            - format is not one of: cyclonedx, spdx
+            - env is not one of: development, staging, production
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: INVALID_REPO_PATH
+                message: "Repository path does not exist: '/repos/missing'"
+                details:
+                  field: repo_path
+                  received: "/repos/missing"
+        "500":
+          description: "Unexpected internal error during scan pipeline execution"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: INTERNAL_ERROR
+                message: "Scan pipeline failed due to an unexpected error"
+                details: null
+
+  /scans/{scan_id}:
+    get:
+      operationId: getScan
+      summary: "Retrieve a stored scan result by ID"
+      description: |
+        Returns the ScanResponse for a previously completed scan. Scan results
+        are persisted by the service after each successful POST /scans invocation.
+      tags: [business-logic]
+      parameters:
+        - name: scan_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: "UUID of the scan result to retrieve"
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: "Scan result found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResponse"
+        "404":
+          description: "No scan result found for the given scan_id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: SCAN_NOT_FOUND
+                message: "No scan result found for ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                details:
+                  scan_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        "500":
+          description: "Internal error while retrieving the scan result"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /sync:
+    post:
+      operationId: syncNvdCache
+      summary: "Synchronize the local NVD vulnerability cache"
+      description: |
+        Triggers NVDSyncOrchestrator to ingest a local Grype vulnerability database
+        file into the SQLite NVD cache. This is the equivalent of `sbom-tool sync`.
+
+        Run this operation before scanning stale repositories to ensure vulnerability
+        data is current. The NVD sync threshold is 7 days — caches older than this
+        will produce staleness warnings during scans.
+      tags: [orchestration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRequest"
+            example:
+              source_path: "/var/grype/db/vulnerability.db"
+      responses:
+        "200":
+          description: "NVD sync completed successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+              example:
+                records_added: 1247
+                records_updated: 83
+                synced_at: "2026-04-09T10:00:00Z"
+                source_path: "/var/grype/db/vulnerability.db"
+                sync_log:
+                  synced_at: "2026-04-09T10:00:00Z"
+                  source_path: "/var/grype/db/vulnerability.db"
+                  records_added: 1247
+                  records_updated: 83
+        "404":
+          description: |
+            source_path not found on the server filesystem.
+            Maps to NVDSyncError raised by NVDCacheManager.sync().
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: NVD_SOURCE_NOT_FOUND
+                message: "NVD source database not found: /var/grype/db/vulnerability.db"
+                details:
+                  source_path: "/var/grype/db/vulnerability.db"
+        "500":
+          description: "Unexpected error during NVD sync (e.g., corrupt database file)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: NVD_SYNC_FAILED
+                message: "NVD sync encountered an unexpected error"
+                details: null
+
+  /cache/status:
+    get:
+      operationId: getCacheStatus
+      summary: "Get NVD cache staleness and record count"
+      description: |
+        Returns the current state of the local NVD SQLite cache, including the
+        last sync timestamp, age in days, whether it is considered stale (> 7 days),
+        and the total number of vulnerability records.
+      tags: [workflow-state]
+      responses:
+        "200":
+          description: "Cache status retrieved successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheStatusResponse"
+              examples:
+                fresh_cache:
+                  summary: "Cache synced today"
+                  value:
+                    last_synced_at: "2026-04-09T10:00:00Z"
+                    age_days: 0.0
+                    is_stale: false
+                    record_count: 82451
+                stale_cache:
+                  summary: "Cache has not been synced in 10 days"
+                  value:
+                    last_synced_at: "2026-03-30T08:00:00Z"
+                    age_days: 10.1
+                    is_stale: true
+                    record_count: 80000
+                never_synced:
+                  summary: "Cache has never been synced"
+                  value:
+                    last_synced_at: null
+                    age_days: null
+                    is_stale: true
+                    record_count: 0
+        "500":
+          description: "Internal error while querying the NVD cache"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: "Service liveness and readiness probe"
+      description: |
+        Returns service health status, deployed version, and a summary of NVD cache
+        health. Suitable for use as a Kubernetes liveness or readiness probe target.
+      tags: [workflow-state]
+      responses:
+        "200":
+          description: "Service is healthy or degraded but responding"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                healthy:
+                  summary: "Service healthy with fresh cache"
+                  value:
+                    status: ok
+                    version: "1.0.0"
+                    cache_status:
+                      last_synced_at: "2026-04-09T10:00:00Z"
+                      age_days: 0.0
+                      is_stale: false
+                      record_count: 82451
+                degraded:
+                  summary: "Service running but cache is stale"
+                  value:
+                    status: degraded
+                    version: "1.0.0"
+                    cache_status:
+                      last_synced_at: "2026-03-30T08:00:00Z"
+                      age_days: 10.1
+                      is_stale: true
+                      record_count: 80000
+        "500":
+          description: "Service is unhealthy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"

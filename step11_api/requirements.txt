@@ -1,0 +1,51 @@
+# SBOM POC Tool API — Python dependencies
+# Session: SBOM-20260409-sb01
+# Generated: Step 11 — FastAPI API Generation
+#
+# Install:
+#   pip install -r requirements.txt
+
+# ------------------------------------------------------------------
+# FastAPI web framework
+# ------------------------------------------------------------------
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# ------------------------------------------------------------------
+# Pydantic v2 (models + settings)
+# ------------------------------------------------------------------
+pydantic==2.9.0
+pydantic-settings==2.6.0
+
+# ------------------------------------------------------------------
+# CLI
+# ------------------------------------------------------------------
+typer>=0.12
+
+# ------------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------------
+python-dotenv==1.0.0
+python-multipart==0.0.12
+
+# ------------------------------------------------------------------
+# Testing
+# ------------------------------------------------------------------
+pytest==8.3.0
+pytest-asyncio==0.24.0
+httpx==0.27.2          # provides TestClient for FastAPI integration tests
+
+# ------------------------------------------------------------------
+# NOTE: step6_tdd_green_phase.py declares pytest fixtures at module
+# level (@pytest.fixture), so `import pytest` must succeed at runtime.
+# pytest is therefore a runtime dependency for this POC.  In a production
+# refactor, the business module would be split to remove the test fixtures.
+# ------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# stdlib-only dependencies (no extra install required):
+#   sqlite3   — NVD cache storage (NVDCacheManager)
+#   uuid      — scan_id generation
+#   json      — SBOM serialization
+#   os / sys  — path manipulation
+# ------------------------------------------------------------------

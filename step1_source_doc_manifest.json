@@ -1,0 +1,32 @@
+{
+  "source_path": "inline_spec",
+  "zip_source": null,
+  "scan_timestamp": "2026-04-09T00:00:00Z",
+  "session_id": "SBOM-20260409-sb01",
+  "documents": [
+    {
+      "path": "SBOM_POC_Scope.md",
+      "filename": "SBOM_POC_Scope.md",
+      "extension": ".md",
+      "category": "overview",
+      "reading_order": 1,
+      "size_bytes": 2800,
+      "status": "extracted",
+      "source_type": "detailed_spec",
+      "source_type_indicators": [
+        "Contains numbered requirement table with explicit IDs (#1–#7)",
+        "Contains explicit Out-of-Scope section with named deferrals",
+        "Contains OSS reuse table with component/tool/layer columns",
+        "Contains Key Decisions section with explicit technology choices"
+      ]
+    }
+  ],
+  "summary": {
+    "total_documents": 1,
+    "by_category": {"overview": 1},
+    "by_extension": {".md": 1},
+    "total_size_bytes": 2800
+  },
+  "extraction_mode": "detailed_spec",
+  "note": "Source document provided inline by user; treated as a single detailed specification."
+}

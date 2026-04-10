@@ -1,0 +1,49 @@
+# SBOM POC Tool API — Docker Compose
+# Session: SBOM-20260409-sb01
+# Generated: Step 11 — FastAPI API Generation
+#
+# Usage (from session root — the directory containing step6/step9 files):
+#   docker compose -f step11_api/docker-compose.yml up --build
+#
+# The build context is set to the session root (.) so that Dockerfile COPY
+# instructions can reach step6_tdd_green_phase.py and step9 files.
+
+version: "3.9"
+
+services:
+  sbom-api:
+    build:
+      context: ..                        # session root — contains step6/step9
+      dockerfile: step11_api/Dockerfile
+    image: sbom-poc-api:latest
+    container_name: sbom-poc-api
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      APP_NAME: "SBOM POC Tool API"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      RELOAD: "False"
+      VERSION: "0.1.0"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      NVD_CACHE_DB_PATH: "${NVD_CACHE_DB_PATH:-:memory:}"
+      ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+    # Uncomment to load from .env file instead of inline environment above:
+    # env_file:
+    #   - step11_api/.env
+    volumes:
+      # Optional: mount a host directory for persistent NVD cache.
+      # Set NVD_CACHE_DB_PATH=/data/nvd_cache.db to use it.
+      - nvd_cache_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  nvd_cache_data:
+    driver: local

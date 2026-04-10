@@ -1,0 +1,45 @@
+{
+  "session_id": "SBOM-20260409-sb01",
+  "validation_timestamp": "2026-04-09T22:21:52Z",
+  "test_file": "step7_atdd_orchestration.py",
+  "validation_criteria": {
+    "must_have": [
+      "Extends step4_atdd_business.py",
+      "Imports from step6_tdd_green_phase_business.py",
+      "Tests orchestration not components",
+      "No hardcoded values",
+      "Works with any mock data"
+    ],
+    "should_have": [
+      "Workflow execution tests",
+      "State management tests",
+      "Component coordination tests",
+      "Error recovery tests",
+      "Resource management tests",
+      "Performance tests"
+    ],
+    "quality_indicators": [
+      "Clear acceptance criteria",
+      "Test independence",
+      "Comprehensive assertions",
+      "Proper fixture usage",
+      "Good test structure"
+    ],
+    "anti_patterns": [
+      "Hardcoded company names",
+      "Specific value assertions",
+      "Testing component internals",
+      "Accessing private state",
+      "Tight coupling"
+    ]
+  },
+  "scoring_weights": {
+    "integration": 0.2,
+    "orchestration_focus": 0.3,
+    "anti_hardcoding": 0.25,
+    "test_quality": 0.15,
+    "coverage": 0.1
+  },
+  "pass_threshold": 80,
+  "revision_threshold": 60
+}

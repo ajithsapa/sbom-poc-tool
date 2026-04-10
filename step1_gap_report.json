@@ -1,0 +1,94 @@
+{
+  "report_version": "1.0",
+  "session_id": "SBOM-20260409-sb01",
+  "generated_at": "2026-04-09T00:00:00Z",
+  "summary": {
+    "total_checks": 42,
+    "passed": 39,
+    "entity_gaps": 0,
+    "rule_inaccuracies": 0,
+    "fabrication_warnings": 0,
+    "confidence_issues": 0,
+    "low_coverage_documents": 0,
+    "requires_clarification": 3,
+    "overall_accuracy": "92.9%",
+    "confidence_distribution": {
+      "verbatim": 58,
+      "paraphrased": 4,
+      "inferred": 22,
+      "uncertain": 0,
+      "missing": 0
+    }
+  },
+
+  "entity_gaps": [],
+
+  "rule_inaccuracies": [],
+
+  "fabrication_warnings": [],
+
+  "confidence_issues": [],
+
+  "coverage_audit": [
+    {
+      "document": "SBOM_POC_Scope.md",
+      "sections": [
+        "What We're Building",
+        "In Scope #1",
+        "In Scope #2",
+        "In Scope #3",
+        "In Scope #4",
+        "In Scope #5",
+        "In Scope #6",
+        "In Scope #7",
+        "Out of Scope (all 7 items)",
+        "OSS Reuse table (all 8 rows)",
+        "Key Decisions (all 4 decisions)"
+      ],
+      "total_sections": 11,
+      "referenced_sections": 11,
+      "coverage_pct": 100,
+      "status": "COMPLETE"
+    }
+  ],
+
+  "items_requiring_clarification": [
+    {
+      "field_path": "engines_and_rules.engines[0].rule_table",
+      "question": "The spec names severity bands 'High / Medium / Low' (In Scope #6) but does not provide numeric CVSS score thresholds. Are standard CVSS v3.1 numeric bands intended (e.g., High >= 7.0, Medium >= 4.0, Low >= 0.1)? And does the 3-band scheme collapse 'Critical' (>= 9.0) into 'High', or is Critical excluded entirely?",
+      "context": "Source says 'CVSS-based severity classification (High / Medium / Low)' — only three labels listed, no thresholds",
+      "severity": "medium"
+    },
+    {
+      "field_path": "business_rule_catalog.rules[Remediation Per Vulnerability].condition",
+      "question": "In Scope #6 says 'remediation recommendation or advisory link per vulnerability'. Does this mean (a) at least one of the two must always be present, or (b) both are optional independently and may both be absent for some vulnerabilities?",
+      "context": "Source uses 'or' which is ambiguous about whether the disjunction is exclusive or inclusive, and whether absence of both is acceptable",
+      "severity": "medium"
+    },
+    {
+      "field_path": "capabilities.integration_needs — CLI framework choice",
+      "question": "OSS Reuse table lists 'Click / Typer' for the CLI framework. Is there a preference, or is the choice left to implementation?",
+      "context": "Both Click and Typer are Python CLI libraries; choice affects CLI API design",
+      "severity": "low"
+    }
+  ],
+
+  "accepted_gaps": [],
+  "out_of_scope_items": [
+    "License detection — explicitly Out of Scope (post-POC)",
+    "Real-time NVD API calls per scan — explicitly Out of Scope (Phase 2 option)",
+    "AI BOM scanning (LLMs, agents, model files) — explicitly Out of Scope (Phase 1B)",
+    "CI/CD pipeline integration examples (GitHub Actions, GitLab CI) — explicitly Out of Scope (Phase 1C)",
+    "Frontend UI / dashboards — explicitly Out of Scope",
+    "RBAC, versioned storage, graph visualization — explicitly Out of Scope (Phase 2 Governance Layer)",
+    "Multi-language support beyond Python + JS/TS — explicitly Out of Scope (Phase 1.5)"
+  ],
+
+  "_anti_fabrication_check": {
+    "result": "PASS",
+    "fabrication_warnings_count": 0,
+    "generic_substitutions_found": 0,
+    "all_values_attributed": true,
+    "scan_notes": "All domain-specific values (entity names, OSS tool names, severity labels, workflow states, rule conditions) trace directly to the source document. No generic phrases ('Standard approach', 'Best practice', 'Industry-standard') inserted."
+  }
+}

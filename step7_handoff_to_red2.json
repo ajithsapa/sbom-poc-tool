@@ -1,0 +1,170 @@
+{
+  "tdd_red2_context": {
+    "session_id": "SBOM-20260409-sb01",
+    "source_atdd_file": "step4_atdd_business.py",
+    "orchestration_test_file": "step7_atdd_orchestration.py",
+    "step6_implementation_file": "step6_tdd_green_phase.py",
+
+    "workflow_patterns": ["sequential", "state-machine", "pipeline"],
+
+    "orchestration_components_to_implement": [
+      {
+        "class": "ScanOrchestrator",
+        "description": "End-to-end scan pipeline coordinator",
+        "constructor_deps": [
+          "ScanJobValidator", "OSSToolAdapter", "VulnerabilityMapper",
+          "VEXFilter", "RemediationEnricher", "NVDCacheManager",
+          "CycloneDXSerializer", "SPDXSerializer"
+        ],
+        "primary_method": "run(repo_path, output_format, env, nvd_cache, raw_tool_output, vex_statements, last_synced_at) -> ScanResult",
+        "key_behaviors": [
+          "Validate job before any scanning (reject multi-repo, unknown env)",
+          "Check cache staleness before scanning; add warning to ScanResult if stale",
+          "Normalise + deduplicate raw tool output via OSSToolAdapter",
+          "Map vulnerabilities from deduped deps via VulnerabilityMapper",
+          "Apply VEX filter BEFORE enrichment (not after)",
+          "Enrich only active_vulns via RemediationEnricher",
+          "Serialise to CycloneDX or SPDX based on output_format parameter",
+          "Record workflow_states_visited in ScanResult",
+          "Make zero network calls (all data from supplied nvd_cache)"
+        ]
+      },
+      {
+        "class": "NVDSyncOrchestrator",
+        "description": "NVD sync workflow coordinator",
+        "constructor_deps": ["NVDCacheManager"],
+        "primary_method": "run(source_path) -> SyncResult",
+        "key_behaviors": [
+          "Delegate to NVDCacheManager.sync(source_path)",
+          "Wrap result in SyncResult dataclass with records_added, records_updated, synced_at, source_path, sync_log",
+          "Allow NVDSyncError to propagate — do not catch and swallow",
+          "Record workflow_states_visited if state machine is tracked"
+        ]
+      },
+      {
+        "class": "CLIOrchestrator",
+        "description": "Typer CLI wiring layer",
+        "constructor_deps": ["ScanOrchestrator", "NVDSyncOrchestrator"],
+        "methods": [
+          "invoke_scan(repo, fmt, env, output_path=None) -> {exit_code, stdout, stderr}",
+          "invoke_sync(source) -> {exit_code, stdout, stderr}"
+        ],
+        "key_behaviors": [
+          "invoke_scan: validate then call ScanOrchestrator.run; exit 0 on success",
+          "invoke_scan: on validation failure, exit non-zero with error to stderr",
+          "invoke_scan: on stale cache warning, write warning to stderr but exit 0",
+          "invoke_scan: write SBOM JSON to stdout or output_path file",
+          "invoke_sync: call NVDSyncOrchestrator.run; exit 0 on success; print counts to stdout",
+          "invoke_sync: on NVDSyncError, exit non-zero with error to stderr"
+        ]
+      }
+    ],
+
+    "state_requirements": {
+      "scan_workflow": {
+        "name": "Scan Workflow",
+        "states": [
+          "idle", "scanning_dependencies", "deduplicating_output",
+          "matching_vulnerabilities", "filtering_vex",
+          "enriching_remediation", "exporting_sbom"
+        ],
+        "transitions": [
+          {"from": "idle", "to": "scanning_dependencies",
+           "guard": "Single repo, single environment specified"},
+          {"from": "scanning_dependencies", "to": "deduplicating_output",
+           "guard": null},
+          {"from": "deduplicating_output", "to": "matching_vulnerabilities",
+           "guard": null},
+          {"from": "matching_vulnerabilities", "to": "filtering_vex",
+           "guard": "Local cache used — no live API call"},
+          {"from": "filtering_vex", "to": "enriching_remediation",
+           "guard": null},
+          {"from": "enriching_remediation", "to": "exporting_sbom",
+           "guard": null},
+          {"from": "exporting_sbom", "to": "idle", "guard": null}
+        ],
+        "source": "SBOM_POC_Scope.md — Scan Workflow (inferred)"
+      },
+      "nvd_sync_workflow": {
+        "name": "NVD Sync Workflow",
+        "states": ["idle", "syncing_nvd", "updating_cache", "sync_complete"],
+        "transitions": [
+          {"from": "idle", "to": "syncing_nvd", "guard": null},
+          {"from": "syncing_nvd", "to": "updating_cache", "guard": null},
+          {"from": "updating_cache", "to": "sync_complete", "guard": null},
+          {"from": "sync_complete", "to": "idle", "guard": null}
+        ],
+        "source": "SBOM_POC_Scope.md, In Scope #7 (verbatim)"
+      },
+      "persistence": "in-memory (no external DB for orchestration state)"
+    },
+
+    "data_contracts": {
+      "ScanResult": {
+        "dependencies": "List[Dict] — all deps from OSSToolAdapter after dedup",
+        "active_vulns": "List[Dict] — mapped + VEX-filtered + enriched vulns",
+        "suppressed_vulns": "List[Dict] — VEX-suppressed vulns with vex_filtered=True",
+        "warnings": "List[str] — stale cache warnings and other non-fatal messages",
+        "sbom_document": "Dict — serialized CycloneDX or SPDX document",
+        "workflow_states_visited": "List[str] — ordered list of state values visited"
+      },
+      "SyncResult": {
+        "records_added": "int",
+        "records_updated": "int",
+        "synced_at": "str (ISO 8601)",
+        "source_path": "str",
+        "sync_log": "Dict with synced_at, source_path, records_added, records_updated"
+      }
+    },
+
+    "critical_ordering_constraints": [
+      "OSSToolAdapter.deduplicate() MUST run before VulnerabilityMapper.map_vulnerabilities()",
+      "VEXFilter.apply() MUST run before RemediationEnricher.enrich() on each vuln",
+      "ScanJobValidator.validate() MUST run before OSSToolAdapter is invoked",
+      "NVDCacheManager.is_stale() MUST be checked before VulnerabilityMapper runs"
+    ],
+
+    "rules_enforced_at_orchestration_boundary": [
+      {
+        "rule": "Single Repository Per Scan",
+        "source": "SBOM_POC_Scope.md, In Scope #1 (verbatim)",
+        "enforcement": "Reject comma-separated paths before scanning"
+      },
+      {
+        "rule": "Single Runtime Environment Per Run",
+        "source": "SBOM_POC_Scope.md, In Scope #2 (verbatim)",
+        "enforcement": "Validate env in {development, staging, production}"
+      },
+      {
+        "rule": "No Live NVD API Call at Scan Time",
+        "source": "SBOM_POC_Scope.md, In Scope #7 (verbatim)",
+        "enforcement": "All vuln data served from supplied nvd_cache dict only"
+      },
+      {
+        "rule": "NVD Cache Staleness Warning",
+        "source": "SBOM_POC_Scope.md, In Scope #7 (verbatim)",
+        "enforcement": "Add warning to ScanResult.warnings if last_synced_at >= 7 days ago; do NOT abort"
+      }
+    ],
+
+    "ddm_provenance": {
+      "source": "document-driven-mode",
+      "source_document": "SBOM_POC_Scope.md",
+      "workflows_tested": 2,
+      "workflows_total": 2,
+      "transitions_tested": 11,
+      "transitions_total": 11,
+      "cross_workflow_rules_tested": 4,
+      "gap_exclusions": [
+        "License detection (Out of Scope per spec)",
+        "Real-time NVD API calls (Out of Scope Phase 2)",
+        "AI BOM scanning (Out of Scope Phase 1B)"
+      ],
+      "confidence_distribution": {
+        "verbatim": 7,
+        "paraphrased": 0,
+        "inferred": 4
+      }
+    }
+  }
+}

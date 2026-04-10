@@ -1,0 +1,106 @@
+{
+  "green_phase_2_context": {
+    "session_id": "SBOM-20260409-sb01",
+    "test_file": "step8_tdd_red_phase_orchestration_tests.py",
+    "test_classes": [
+      "TestScanOrchestratorInit",
+      "TestScanOrchestratorCallOrder",
+      "TestScanOrchestratorStaleness",
+      "TestScanOrchestratorFormats",
+      "TestScanOrchestratorErrorPaths",
+      "TestScanOrchestratorResultShape",
+      "TestNVDSyncOrchestratorDelegation",
+      "TestNVDSyncOrchestratorResult",
+      "TestNVDSyncOrchestratorErrors",
+      "TestCLIOrchestratorScanCommand",
+      "TestCLIOrchestratorSyncCommand",
+      "TestCLIOrchestratorOutputFlag",
+      "TestScanWorkflowStateTransitions",
+      "TestScanWorkflowStateMachine"
+    ],
+
+    "orchestration_components": {
+      "core_classes": [
+        "ScanOrchestrator",
+        "NVDSyncOrchestrator",
+        "CLIOrchestrator",
+        "WorkflowStateMachine"
+      ],
+      "data_classes": [
+        "ScanResult (defined in step7 — implement fields)",
+        "SyncResult (defined in step7 — implement fields)"
+      ],
+      "enums_already_defined": [
+        "ScanWorkflowState (step7) — 7 states",
+        "NVDSyncWorkflowState (step7) — 4 states"
+      ]
+    },
+
+    "required_method_signatures": {
+      "ScanOrchestrator": {
+        "__init__": "(self, validator=None, adapter=None, mapper=None, vex_filter=None, enricher=None, nvd_cache_manager=None, cyclonedx_serializer=None, spdx_serializer=None)",
+        "run": "(self, repo_path: str, output_format: str, env: str, nvd_cache: dict, raw_tool_output: dict, vex_statements: list = None, last_synced_at: datetime = None) -> ScanResult"
+      },
+      "NVDSyncOrchestrator": {
+        "__init__": "(self, cache_manager=None)",
+        "run": "(self, source_path: str) -> SyncResult"
+      },
+      "CLIOrchestrator": {
+        "__init__": "(self, scan_orchestrator=None, sync_orchestrator=None)",
+        "invoke_scan": "(self, repo: str, fmt: str, env: str, output_path: str = None) -> dict",
+        "invoke_sync": "(self, source: str) -> dict"
+      },
+      "WorkflowStateMachine": {
+        "__init__": "(self, initial_state: ScanWorkflowState = ScanWorkflowState.IDLE)",
+        "state": "property -> ScanWorkflowState",
+        "transition": "(self, target: ScanWorkflowState) -> None",
+        "can_transition": "(self, target: ScanWorkflowState) -> bool",
+        "visited_states": "(self) -> List[str]"
+      }
+    },
+
+    "workflow_requirements": {
+      "scan_pipeline_order": [
+        "1. ScanJobValidator.validate(repo_path, env) — abort on failure",
+        "2. NVDCacheManager.is_stale(last_synced_at) — add warning if True",
+        "3. OSSToolAdapter.normalise(raw_tool_output)",
+        "4. OSSToolAdapter.deduplicate(normalised)",
+        "5. VulnerabilityMapper.map_vulnerabilities(deduped, nvd_cache)",
+        "6. VEXFilter.apply(mapped_vulns, vex_statements)",
+        "7. RemediationEnricher.enrich(vuln, nvd_cache[purl]) for each active vuln",
+        "8. CycloneDXSerializer or SPDXSerializer based on output_format"
+      ],
+      "state_transitions": [
+        "IDLE -> SCANNING_DEPENDENCIES (guard: single repo, valid env)",
+        "SCANNING_DEPENDENCIES -> DEDUPLICATING_OUTPUT",
+        "DEDUPLICATING_OUTPUT -> MATCHING_VULNERABILITIES",
+        "MATCHING_VULNERABILITIES -> FILTERING_VEX (guard: local cache used)",
+        "FILTERING_VEX -> ENRICHING_REMEDIATION",
+        "ENRICHING_REMEDIATION -> EXPORTING_SBOM",
+        "No backward transitions; no skipping"
+      ],
+      "error_handling": "propagate NVDSyncError, ValueError — do not swallow",
+      "network_calls": "ZERO — all data from supplied nvd_cache dict"
+    },
+
+    "cli_contract": {
+      "invoke_scan_return": {"exit_code": "int (0=success, non-zero=failure)", "stdout": "SBOM JSON string or empty string", "stderr": "error/warning string or empty string"},
+      "invoke_sync_return": {"exit_code": "int", "stdout": "sync count summary string", "stderr": "error string or empty"},
+      "stale_warning_routing": "stderr only — stdout remains pure SBOM JSON",
+      "output_flag": "when output_path set, write file and return empty stdout"
+    },
+
+    "expected_failures": {
+      "total_tests": 126,
+      "red_phase_failures": 122,
+      "contract_checks_passing": 4,
+      "failure_reason": "ScanOrchestrator, NVDSyncOrchestrator, CLIOrchestrator, WorkflowStateMachine all raise NotImplementedError in __init__"
+    },
+
+    "files_available": {
+      "business_layer": "step6_tdd_green_phase.py",
+      "orchestration_stubs": "step7_atdd_orchestration.py",
+      "unit_tests": "step8_tdd_red_phase_orchestration_tests.py"
+    }
+  }
+}

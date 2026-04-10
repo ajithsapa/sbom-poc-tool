@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Generated DB (run `python create_nvd_cache_db.py` to recreate)
+*.db
+
+# Batch files (merged into step5_tdd_red_phase.py)
+step5_tdd_red_phase_batch1.py
+step5_tdd_red_phase_batch2.py
+
+# IDE
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,1250 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01",
+    "domain": "Developer Tooling — Software Supply Chain Security",
+    "entity_count": 62,
+    "generated_at": "2026-04-09T10:00:00Z",
+    "generation_mode": "document-driven",
+    "source_agent": "step1b-agent-mockdata",
+    "ddm_context": {
+      "source": "document-driven-mode",
+      "ledger_entity_count": 8,
+      "ledger_rule_count": 7,
+      "gap_exclusions": [],
+      "coverage_alignment": {
+        "bdd_focus_areas_covered": 14,
+        "risk_scenarios_covered": 5
+      }
+    },
+    "codebases": {
+      "taskmatrix": {
+        "description": "LLM/Agent stack — github.com/chenfei-wu/TaskMatrix",
+        "scan_id": "scan_001"
+      },
+      "handson_ml": {
+        "description": "Classic ML/DS stack — github.com/ageron/handson-ml",
+        "scan_id": "scan_002"
+      },
+      "clean_project": {
+        "description": "Minimal Python web service — no known CVEs",
+        "scan_id": "scan_003"
+      }
+    }
+  },
+
+  "entities": {
+
+    "ScanJob": [
+      {
+        "id": "scan_001",
+        "type": "ScanJob",
+        "repository_path": "/repos/TaskMatrix",
+        "repository_name": "TaskMatrix",
+        "repository_url": "https://github.com/chenfei-wu/TaskMatrix",
+        "language": "Python",
+        "runtime_environment": "development",
+        "output_format": "cyclonedx",
+        "scan_tool": "Syft",
+        "vuln_tool": "Grype",
+        "vex_tool": "OpenVEX",
+        "status": "completed",
+        "scan_started_at": "2026-04-09T10:00:00Z",
+        "scan_completed_at": "2026-04-09T10:01:23Z",
+        "exit_code": 0,
+        "sbom_document_id": "sbom_001",
+        "vulnerability_count": 4,
+        "dependency_count": 8,
+        "nvd_cache_id": "nvd_cache_001",
+        "_notes": "TaskMatrix LLM project — langchain 0.0.101 carries HIGH CVE-2023-34540"
+      },
+      {
+        "id": "scan_002",
+        "type": "ScanJob",
+        "repository_path": "/repos/handson-ml",
+        "repository_name": "handson-ml",
+        "repository_url": "https://github.com/ageron/handson-ml",
+        "language": "Python",
+        "runtime_environment": "development",
+        "output_format": "spdx",
+        "scan_tool": "Syft",
+        "vuln_tool": "Grype",
+        "vex_tool": "OpenVEX",
+        "status": "completed",
+        "scan_started_at": "2026-04-09T10:05:00Z",
+        "scan_completed_at": "2026-04-09T10:06:47Z",
+        "exit_code": 0,
+        "sbom_document_id": "sbom_002",
+        "vulnerability_count": 5,
+        "dependency_count": 9,
+        "nvd_cache_id": "nvd_cache_001",
+        "_notes": "handson-ml classic ML project — numpy 1.22.0, scipy 1.6.0 carry MEDIUM CVEs; joblib 0.14.1 (transitive) carries HIGH CVE-2022-21797; Pillow 9.0.1 carries HIGH CVE-2023-44271; tensorflow 1.15.5 carries HIGH CVE-2022-29216"
+      },
+      {
+        "id": "scan_003",
+        "type": "ScanJob",
+        "repository_path": "/repos/clean-api",
+        "repository_name": "clean-api",
+        "repository_url": null,
+        "language": "Python",
+        "runtime_environment": "development",
+        "output_format": "cyclonedx",
+        "scan_tool": "Syft",
+        "vuln_tool": "Grype",
+        "vex_tool": "OpenVEX",
+        "status": "completed",
+        "scan_started_at": "2026-04-09T10:10:00Z",
+        "scan_completed_at": "2026-04-09T10:10:58Z",
+        "exit_code": 0,
+        "sbom_document_id": "sbom_003",
+        "vulnerability_count": 0,
+        "dependency_count": 4,
+        "nvd_cache_id": "nvd_cache_001",
+        "_notes": "Minimal Python web service with no known CVEs — used for clean-scan scenario"
+      }
+    ],
+
+    "DependencyInventory": [
+      {
+        "id": "dep_tm_001",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "langchain",
+        "exact_version": "0.0.101",
+        "supplier": "LangChain, Inc.",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/langchain@0.0.101",
+        "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "MIT",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2023-34540"],
+        "_notes": "Primary direct dependency — pinned in requirements.txt at 0.0.101"
+      },
+      {
+        "id": "dep_tm_002",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "openai",
+        "exact_version": "0.27.2",
+        "supplier": "OpenAI",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/openai@0.27.2",
+        "cpe": "cpe:2.3:a:openai:openai:0.27.2:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "MIT",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_tm_003",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "requests",
+        "exact_version": "2.27.1",
+        "supplier": "Kenneth Reitz",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/requests@2.27.1",
+        "cpe": "cpe:2.3:a:python-requests:requests:2.27.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "Apache-2.0",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2023-32681"],
+        "_notes": "TRANSITIVE via langchain — not in real requirements.txt as a direct dep"
+      },
+      {
+        "id": "dep_tm_004",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "numpy",
+        "exact_version": "1.23.5",
+        "supplier": "NumPy Developers",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/numpy@1.23.5",
+        "cpe": "cpe:2.3:a:numpy:numpy:1.23.5:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": [],
+        "_notes": "1.23.5 is patched; numpy 1.22.0 in handson-ml is vulnerable"
+      },
+      {
+        "id": "dep_tm_005",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "pydantic",
+        "exact_version": "1.10.4",
+        "supplier": "Pydantic Services Inc.",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/pydantic@1.10.4",
+        "cpe": "cpe:2.3:a:pydantic:pydantic:1.10.4:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "MIT",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_tm_006",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "lxml",
+        "exact_version": "4.6.3",
+        "supplier": "lxml developers",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/lxml@4.6.3",
+        "cpe": "cpe:2.3:a:lxml:lxml:4.6.3:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2018-19787"],
+        "_notes": "Transitive via langchain document loaders — XSS vulnerability"
+      },
+      {
+        "id": "dep_tm_007",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "aiohttp",
+        "exact_version": "3.8.1",
+        "supplier": "aio-libs",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/aiohttp@3.8.1",
+        "cpe": "cpe:2.3:a:aiohttp:aiohttp:3.8.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "Apache-2.0",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_tm_008",
+        "type": "DependencyInventory",
+        "scan_id": "scan_001",
+        "name": "tenacity",
+        "exact_version": "8.1.0",
+        "supplier": "Julien Danjou",
+        "dependency_type": "transitive",
+        "transitive_via": "langchain",
+        "purl": "pkg:pypi/tenacity@8.1.0",
+        "cpe": "cpe:2.3:a:tenacity_project:tenacity:8.1.0:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "Apache-2.0",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_hml_001",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "numpy",
+        "exact_version": "1.22.0",
+        "supplier": "NumPy Developers",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/numpy@1.22.0",
+        "cpe": "cpe:2.3:a:numpy:numpy:1.22.0:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2021-33430"],
+        "_notes": "Pinned at 1.22.0 in requirements.txt — heap buffer overflow in 1.9.x–1.22.x range"
+      },
+      {
+        "id": "dep_hml_002",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "pandas",
+        "exact_version": "1.2.2",
+        "supplier": "Pandas Development Team",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/pandas@1.2.2",
+        "cpe": "cpe:2.3:a:pandas:pandas:1.2.2:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_hml_003",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "scikit-learn",
+        "exact_version": "0.24.1",
+        "supplier": "scikit-learn developers",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/scikit-learn@0.24.1",
+        "cpe": "cpe:2.3:a:scikit-learn:scikit-learn:0.24.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": [],
+        "_notes": "scikit-learn itself is clean; its transitive dep joblib 0.14.1 carries HIGH CVE"
+      },
+      {
+        "id": "dep_hml_004",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "scipy",
+        "exact_version": "1.6.0",
+        "supplier": "SciPy Developers",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/scipy@1.6.0",
+        "cpe": "cpe:2.3:a:scipy:scipy:1.6.0:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2023-25399"],
+        "_notes": "Pinned at 1.6.0 — use-after-free in memory management routines"
+      },
+      {
+        "id": "dep_hml_005",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "matplotlib",
+        "exact_version": "3.3.4",
+        "supplier": "Matplotlib Development Team",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/matplotlib@3.3.4",
+        "cpe": "cpe:2.3:a:matplotlib:matplotlib:3.3.4:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "PSF",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_hml_006",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "Pillow",
+        "exact_version": "9.0.1",
+        "supplier": "Alex Clark and Contributors",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/Pillow@9.0.1",
+        "cpe": "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "HPND",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2023-44271"],
+        "_notes": "Real version from requirements.txt: Pillow==9.0.1. CVE-2021-27922 is fixed in 8.3.0 so 9.0.1 is not affected. CVE-2023-44271 (DoS) affects < 10.0.0 — HIGH, CVSS 7.5"
+      },
+      {
+        "id": "dep_hml_007",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "joblib",
+        "exact_version": "0.14.1",
+        "supplier": "Gael Varoquaux",
+        "dependency_type": "transitive",
+        "transitive_via": "scikit-learn",
+        "purl": "pkg:pypi/joblib@0.14.1",
+        "cpe": "cpe:2.3:a:joblib:joblib:0.14.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2022-21797"],
+        "_notes": "TRANSITIVE via scikit-learn — arbitrary code execution; HIGH severity. Real version from requirements.txt: joblib==0.14.1 (< 1.2.0 affected range)"
+      },
+      {
+        "id": "dep_hml_008",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "threadpoolctl",
+        "exact_version": "2.1.0",
+        "supplier": "scikit-learn developers",
+        "dependency_type": "transitive",
+        "transitive_via": "scikit-learn",
+        "purl": "pkg:pypi/threadpoolctl@2.1.0",
+        "cpe": "cpe:2.3:a:threadpoolctl:threadpoolctl:2.1.0:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_hml_009",
+        "type": "DependencyInventory",
+        "scan_id": "scan_002",
+        "name": "tensorflow",
+        "exact_version": "1.15.5",
+        "supplier": "Google LLC",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/tensorflow@1.15.5",
+        "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "Apache-2.0",
+        "vulnerable": true,
+        "cve_ids": ["CVE-2022-29216"],
+        "_notes": "Pinned at 1.15.5 in real requirements.txt — code injection via tf.raw_ops; affected < 2.9.0"
+      },
+      {
+        "id": "dep_cl_001",
+        "type": "DependencyInventory",
+        "scan_id": "scan_003",
+        "name": "flask",
+        "exact_version": "3.0.0",
+        "supplier": "Pallets",
+        "dependency_type": "direct",
+        "purl": "pkg:pypi/flask@3.0.0",
+        "cpe": "cpe:2.3:a:palletsprojects:flask:3.0.0:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_cl_002",
+        "type": "DependencyInventory",
+        "scan_id": "scan_003",
+        "name": "click",
+        "exact_version": "8.1.7",
+        "supplier": "Pallets",
+        "dependency_type": "transitive",
+        "transitive_via": "flask",
+        "purl": "pkg:pypi/click@8.1.7",
+        "cpe": "cpe:2.3:a:palletsprojects:click:8.1.7:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_cl_003",
+        "type": "DependencyInventory",
+        "scan_id": "scan_003",
+        "name": "werkzeug",
+        "exact_version": "3.0.1",
+        "supplier": "Pallets",
+        "dependency_type": "transitive",
+        "transitive_via": "flask",
+        "purl": "pkg:pypi/werkzeug@3.0.1",
+        "cpe": "cpe:2.3:a:palletsprojects:werkzeug:3.0.1:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      },
+      {
+        "id": "dep_cl_004",
+        "type": "DependencyInventory",
+        "scan_id": "scan_003",
+        "name": "itsdangerous",
+        "exact_version": "2.1.2",
+        "supplier": "Pallets",
+        "dependency_type": "transitive",
+        "transitive_via": "flask",
+        "purl": "pkg:pypi/itsdangerous@2.1.2",
+        "cpe": "cpe:2.3:a:palletsprojects:itsdangerous:2.1.2:*:*:*:*:python:*:*",
+        "ecosystem": "pypi",
+        "license": "BSD-3-Clause",
+        "vulnerable": false,
+        "cve_ids": []
+      }
+    ],
+
+    "VulnerabilityRecord": [
+      {
+        "id": "vuln_001",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2023-34540",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "High",
+        "affected_package": "langchain",
+        "affected_version": "0.0.101",
+        "purl": "pkg:pypi/langchain@0.0.101",
+        "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+        "description": "Langchain before 0.0.247 allows arbitrary code execution via the SQLDatabaseChain chain due to improper input sanitization. The vulnerable chain constructs and executes SQL queries using unsanitized user input, enabling SQL injection and subsequent OS command execution.",
+        "remediation_recommendation": "Upgrade langchain to version 0.0.247 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540",
+        "vex_filtered": false,
+        "scan_id": "scan_001",
+        "dep_id": "dep_tm_001",
+        "remediation_id": "rem_001"
+      },
+      {
+        "id": "vuln_002",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2022-21797",
+        "cvss_score": 9.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "High",
+        "affected_package": "joblib",
+        "affected_version": "0.14.1",
+        "purl": "pkg:pypi/joblib@0.14.1",
+        "cpe": "cpe:2.3:a:joblib:joblib:0.14.1:*:*:*:*:python:*:*",
+        "description": "joblib before 1.2.0 allows arbitrary code execution via deserialization of pickle-serialized objects in the parallel processing workflow. An attacker who can control pickled inputs passed to Parallel() can achieve arbitrary code execution on the machine running joblib.",
+        "remediation_recommendation": "Upgrade joblib to version 1.2.0 or later; note scikit-learn 0.24.1 may need to be upgraded to 1.0+ to accept joblib 1.2.0",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797",
+        "vex_filtered": false,
+        "scan_id": "scan_002",
+        "dep_id": "dep_hml_007",
+        "remediation_id": "rem_002",
+        "_notes": "TRANSITIVE dependency: joblib 0.14.1 is pulled in by scikit-learn 0.24.1 — real version from requirements.txt; affected range < 1.2.0"
+      },
+      {
+        "id": "vuln_003",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2021-33430",
+        "cvss_score": 5.5,
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "Medium",
+        "affected_package": "numpy",
+        "affected_version": "1.22.0",
+        "purl": "pkg:pypi/numpy@1.22.0",
+        "cpe": "cpe:2.3:a:numpy:numpy:1.22.0:*:*:*:*:python:*:*",
+        "description": "A Buffer Overflow vulnerability exists in NumPy versions 1.9.x through 1.22.x via PyArray_NewLikeArrayWithShape in ctors.c. Processing a specially crafted array can trigger a heap buffer overflow, causing a denial of service.",
+        "remediation_recommendation": "Upgrade numpy to version 1.22.2 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2021-33430",
+        "vex_filtered": false,
+        "scan_id": "scan_002",
+        "dep_id": "dep_hml_001",
+        "remediation_id": "rem_003"
+      },
+      {
+        "id": "vuln_004",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2023-25399",
+        "cvss_score": 5.5,
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "Medium",
+        "affected_package": "scipy",
+        "affected_version": "1.6.0",
+        "purl": "pkg:pypi/scipy@1.6.0",
+        "cpe": "cpe:2.3:a:scipy:scipy:1.6.0:*:*:*:*:python:*:*",
+        "description": "A use-after-free vulnerability in SciPy versions before 1.11.0 in the Cython-compiled sparse array routines. Triggers when a sparse matrix object is freed while a reference to its internal data buffer is still held, causing a segmentation fault or denial of service.",
+        "remediation_recommendation": "Upgrade scipy to version 1.11.0 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-25399",
+        "vex_filtered": false,
+        "scan_id": "scan_002",
+        "dep_id": "dep_hml_004",
+        "remediation_id": "rem_004"
+      },
+      {
+        "id": "vuln_005",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2023-32681",
+        "cvss_score": 6.1,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N",
+        "cvss_version": "3.1",
+        "cvss_severity": "Medium",
+        "affected_package": "requests",
+        "affected_version": "2.27.1",
+        "purl": "pkg:pypi/requests@2.27.1",
+        "cpe": "cpe:2.3:a:python-requests:requests:2.27.1:*:*:*:*:python:*:*",
+        "description": "Requests before 2.31.0 allows unintended credential leakage via the Proxy-Authorization header. When following a redirect from an HTTPS URL to an HTTP URL, the Proxy-Authorization header is forwarded to the destination HTTP server, potentially exposing proxy credentials.",
+        "remediation_recommendation": "Upgrade requests to version 2.31.0 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681",
+        "vex_filtered": false,
+        "scan_id": "scan_001",
+        "dep_id": "dep_tm_003",
+        "remediation_id": "rem_005"
+      },
+      {
+        "id": "vuln_006",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2018-19787",
+        "cvss_score": 6.1,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+        "cvss_version": "3.1",
+        "cvss_severity": "Medium",
+        "affected_package": "lxml",
+        "affected_version": "4.6.3",
+        "purl": "pkg:pypi/lxml@4.6.3",
+        "cpe": "cpe:2.3:a:lxml:lxml:4.6.3:*:*:*:*:python:*:*",
+        "description": "An issue was discovered in lxml before 4.7.1. lxml/html/clean.py allows XSS (stored and reflected) via the formaction attribute. A cleaned HTML document can contain javascript: URIs in formaction attribute values on button elements, enabling cross-site scripting attacks.",
+        "remediation_recommendation": "Upgrade lxml to version 4.7.1 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2018-19787",
+        "vex_filtered": false,
+        "scan_id": "scan_001",
+        "dep_id": "dep_tm_006",
+        "remediation_id": "rem_006"
+      },
+      {
+        "id": "vuln_007",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2023-44271",
+        "cvss_score": 7.5,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "High",
+        "affected_package": "Pillow",
+        "affected_version": "9.0.1",
+        "purl": "pkg:pypi/Pillow@9.0.1",
+        "cpe": "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
+        "description": "Pillow before 10.0.0 allows a denial of service via ImageFont.getbbox or ImageFont.getlength when called with a crafted argument containing many characters. An attacker can trigger uncontrolled resource consumption, causing the process to hang or exhaust available memory.",
+        "remediation_recommendation": "Upgrade Pillow to version 10.0.0 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-44271",
+        "vex_filtered": false,
+        "scan_id": "scan_002",
+        "dep_id": "dep_hml_006",
+        "remediation_id": "rem_007",
+        "_notes": "CVE-2021-27922 was fixed in 8.3.0 — Pillow 9.0.1 is not affected. Replaced with CVE-2023-44271 which affects Pillow < 10.0.0"
+      },
+      {
+        "id": "vuln_008",
+        "type": "VulnerabilityRecord",
+        "vulnerability_id": "CVE-2022-29216",
+        "cvss_score": 8.8,
+        "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+        "cvss_version": "3.1",
+        "cvss_severity": "High",
+        "affected_package": "tensorflow",
+        "affected_version": "1.15.5",
+        "purl": "pkg:pypi/tensorflow@1.15.5",
+        "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:python:*:*",
+        "description": "TensorFlow before 2.9.0 allows code injection via tf.raw_ops.DrawBoundingBoxes. An attacker can exploit improper validation of graph node attributes to achieve arbitrary code execution in the TensorFlow runtime environment.",
+        "remediation_recommendation": "Upgrade tensorflow to version 2.9.0 or later",
+        "advisory_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216",
+        "vex_filtered": false,
+        "scan_id": "scan_002",
+        "dep_id": "dep_hml_009",
+        "remediation_id": "rem_008",
+        "_notes": "Real version from requirements.txt: tensorflow==1.15.5; affected range < 2.9.0"
+      }
+    ],
+
+    "SBOMDocument": [
+      {
+        "id": "sbom_001",
+        "type": "SBOMDocument",
+        "scan_id": "scan_001",
+        "format": "CycloneDX JSON",
+        "spec_version": "1.4",
+        "output_path": "/output/TaskMatrix-sbom.cdx.json",
+        "generated_at": "2026-04-09T10:01:23Z",
+        "schema_valid": true,
+        "dependency_count": 8,
+        "vulnerability_count": 4,
+        "document": {
+          "bomFormat": "CycloneDX",
+          "specVersion": "1.4",
+          "serialNumber": "urn:uuid:f47ac10b-58cc-4372-a567-0e02b2c3d001",
+          "version": 1,
+          "metadata": {
+            "timestamp": "2026-04-09T10:01:23Z",
+            "tools": [{"name": "sbom-tool", "version": "0.1.0"}, {"name": "Syft", "version": "0.98.0"}],
+            "component": {
+              "type": "application",
+              "name": "TaskMatrix",
+              "version": "0.1.0",
+              "purl": "pkg:pypi/TaskMatrix@0.1.0"
+            }
+          },
+          "components": [
+            {
+              "type": "library",
+              "name": "langchain",
+              "version": "0.0.101",
+              "purl": "pkg:pypi/langchain@0.0.101",
+              "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "openai",
+              "version": "0.27.2",
+              "purl": "pkg:pypi/openai@0.27.2",
+              "cpe": "cpe:2.3:a:openai:openai:0.27.2:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "requests",
+              "version": "2.27.1",
+              "purl": "pkg:pypi/requests@2.27.1",
+              "cpe": "cpe:2.3:a:python-requests:requests:2.27.1:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "numpy",
+              "version": "1.23.5",
+              "purl": "pkg:pypi/numpy@1.23.5",
+              "cpe": "cpe:2.3:a:numpy:numpy:1.23.5:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "pydantic",
+              "version": "1.10.4",
+              "purl": "pkg:pypi/pydantic@1.10.4",
+              "cpe": "cpe:2.3:a:pydantic:pydantic:1.10.4:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "lxml",
+              "version": "4.6.3",
+              "purl": "pkg:pypi/lxml@4.6.3",
+              "cpe": "cpe:2.3:a:lxml:lxml:4.6.3:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "aiohttp",
+              "version": "3.8.1",
+              "purl": "pkg:pypi/aiohttp@3.8.1",
+              "cpe": "cpe:2.3:a:aiohttp:aiohttp:3.8.1:*:*:*:*:python:*:*"
+            },
+            {
+              "type": "library",
+              "name": "tenacity",
+              "version": "8.1.0",
+              "purl": "pkg:pypi/tenacity@8.1.0",
+              "cpe": "cpe:2.3:a:tenacity_project:tenacity:8.1.0:*:*:*:*:python:*:*"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "id": "CVE-2023-34540",
+              "ratings": [{"source": {"name": "NVD"}, "score": 9.8, "severity": "critical", "method": "CVSSv31", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}],
+              "affects": [{"ref": "pkg:pypi/langchain@0.0.101"}]
+            },
+            {
+              "id": "CVE-2023-32681",
+              "ratings": [{"source": {"name": "NVD"}, "score": 6.1, "severity": "medium", "method": "CVSSv31", "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:N/A:N"}],
+              "affects": [{"ref": "pkg:pypi/requests@2.27.1"}]
+            },
+            {
+              "id": "CVE-2018-19787",
+              "ratings": [{"source": {"name": "NVD"}, "score": 6.1, "severity": "medium", "method": "CVSSv31", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"}],
+              "affects": [{"ref": "pkg:pypi/lxml@4.6.3"}]
+            }
+          ],
+          "remediation_enrichment": {
+            "CVE-2023-34540": {"fix_version": "0.0.247", "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540"},
+            "CVE-2023-32681": {"fix_version": "2.31.0", "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681"},
+            "CVE-2018-19787": {"fix_version": "4.7.1", "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2018-19787"}
+          }
+        }
+      },
+      {
+        "id": "sbom_002",
+        "type": "SBOMDocument",
+        "scan_id": "scan_002",
+        "format": "SPDX JSON",
+        "spec_version": "SPDX-2.3",
+        "output_path": "/output/handson-ml-sbom.spdx.json",
+        "generated_at": "2026-04-09T10:06:47Z",
+        "schema_valid": true,
+        "dependency_count": 9,
+        "vulnerability_count": 5,
+        "document": {
+          "spdxVersion": "SPDX-2.3",
+          "dataLicense": "CC0-1.0",
+          "SPDXID": "SPDXRef-DOCUMENT",
+          "name": "handson-ml-sbom",
+          "documentNamespace": "https://sbom.example.com/handson-ml-2026-04-09",
+          "creationInfo": {
+            "created": "2026-04-09T10:06:47Z",
+            "creators": ["Tool: sbom-tool-0.1.0", "Tool: Syft-0.98.0"]
+          },
+          "packages": [
+            {
+              "SPDXID": "SPDXRef-Package-numpy",
+              "name": "numpy",
+              "versionInfo": "1.22.0",
+              "downloadLocation": "https://pypi.org/project/numpy/1.22.0/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/numpy@1.22.0"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:numpy:numpy:1.22.0:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-pandas",
+              "name": "pandas",
+              "versionInfo": "1.2.2",
+              "downloadLocation": "https://pypi.org/project/pandas/1.2.2/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/pandas@1.2.2"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:pandas:pandas:1.2.2:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-scikit-learn",
+              "name": "scikit-learn",
+              "versionInfo": "0.24.1",
+              "downloadLocation": "https://pypi.org/project/scikit-learn/0.24.1/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/scikit-learn@0.24.1"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:scikit-learn:scikit-learn:0.24.1:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-scipy",
+              "name": "scipy",
+              "versionInfo": "1.6.0",
+              "downloadLocation": "https://pypi.org/project/scipy/1.6.0/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/scipy@1.6.0"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:scipy:scipy:1.6.0:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-matplotlib",
+              "name": "matplotlib",
+              "versionInfo": "3.3.4",
+              "downloadLocation": "https://pypi.org/project/matplotlib/3.3.4/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/matplotlib@3.3.4"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-Pillow",
+              "name": "Pillow",
+              "versionInfo": "9.0.1",
+              "downloadLocation": "https://pypi.org/project/Pillow/9.0.1/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/Pillow@9.0.1"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-joblib",
+              "name": "joblib",
+              "versionInfo": "0.14.1",
+              "downloadLocation": "https://pypi.org/project/joblib/0.14.1/",
+              "filesAnalyzed": false,
+              "comment": "TRANSITIVE — pulled in by scikit-learn 0.24.1",
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/joblib@0.14.1"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:joblib:joblib:0.14.1:*:*:*:*:python:*:*"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-threadpoolctl",
+              "name": "threadpoolctl",
+              "versionInfo": "2.1.0",
+              "downloadLocation": "https://pypi.org/project/threadpoolctl/2.1.0/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/threadpoolctl@2.1.0"}
+              ]
+            },
+            {
+              "SPDXID": "SPDXRef-Package-tensorflow",
+              "name": "tensorflow",
+              "versionInfo": "1.15.5",
+              "downloadLocation": "https://pypi.org/project/tensorflow/1.15.5/",
+              "filesAnalyzed": false,
+              "externalRefs": [
+                {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:pypi/tensorflow@1.15.5"},
+                {"referenceCategory": "SECURITY", "referenceType": "cpe23Type", "referenceLocator": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:python:*:*"}
+              ]
+            }
+          ],
+          "vulnerabilities_summary": {
+            "CVE-2022-21797": {"package": "joblib@0.14.1", "severity": "High", "cvss": 9.8, "fix": "1.2.0"},
+            "CVE-2021-33430": {"package": "numpy@1.22.0", "severity": "Medium", "cvss": 5.5, "fix": "1.22.2"},
+            "CVE-2023-25399": {"package": "scipy@1.6.0", "severity": "Medium", "cvss": 5.5, "fix": "1.11.0"},
+            "CVE-2023-44271": {"package": "Pillow@9.0.1", "severity": "High", "cvss": 7.5, "fix": "10.0.0"},
+            "CVE-2022-29216": {"package": "tensorflow@1.15.5", "severity": "High", "cvss": 8.8, "fix": "2.9.0"}
+          }
+        }
+      },
+      {
+        "id": "sbom_003",
+        "type": "SBOMDocument",
+        "scan_id": "scan_003",
+        "format": "CycloneDX JSON",
+        "spec_version": "1.4",
+        "output_path": "/output/clean-api-sbom.cdx.json",
+        "generated_at": "2026-04-09T10:10:58Z",
+        "schema_valid": true,
+        "dependency_count": 4,
+        "vulnerability_count": 0,
+        "document": {
+          "bomFormat": "CycloneDX",
+          "specVersion": "1.4",
+          "serialNumber": "urn:uuid:f47ac10b-58cc-4372-a567-0e02b2c3d003",
+          "version": 1,
+          "metadata": {
+            "timestamp": "2026-04-09T10:10:58Z",
+            "tools": [{"name": "sbom-tool", "version": "0.1.0"}, {"name": "Syft", "version": "0.98.0"}],
+            "component": {
+              "type": "application",
+              "name": "clean-api",
+              "version": "1.0.0",
+              "purl": "pkg:pypi/clean-api@1.0.0"
+            }
+          },
+          "components": [
+            {"type": "library", "name": "flask", "version": "3.0.0", "purl": "pkg:pypi/flask@3.0.0"},
+            {"type": "library", "name": "click", "version": "8.1.7", "purl": "pkg:pypi/click@8.1.7"},
+            {"type": "library", "name": "werkzeug", "version": "3.0.1", "purl": "pkg:pypi/werkzeug@3.0.1"},
+            {"type": "library", "name": "itsdangerous", "version": "2.1.2", "purl": "pkg:pypi/itsdangerous@2.1.2"}
+          ],
+          "vulnerabilities": [],
+          "remediation_enrichment": {}
+        }
+      }
+    ],
+
+    "NVDCache": [
+      {
+        "id": "nvd_cache_001",
+        "type": "NVDCache",
+        "last_synced_at": "2026-04-09T06:00:00Z",
+        "sync_frequency": "daily",
+        "db_path": "outputs/sessions/SBOM-20260409-sb01/step1b_nvd_cache.db",
+        "record_count": 8,
+        "schema": {
+          "tables": {
+            "vulnerabilities": {
+              "columns": [
+                {"name": "cve_id", "type": "TEXT", "primary_key": true, "not_null": true},
+                {"name": "purl", "type": "TEXT", "not_null": false},
+                {"name": "cpe", "type": "TEXT", "not_null": false},
+                {"name": "cvss_score", "type": "REAL", "not_null": true},
+                {"name": "severity", "type": "TEXT", "not_null": true, "check": "severity IN ('High','Medium','Low')"},
+                {"name": "affected_version_range", "type": "TEXT", "not_null": true},
+                {"name": "fixed_version", "type": "TEXT", "not_null": false},
+                {"name": "advisory_url", "type": "TEXT", "not_null": false},
+                {"name": "last_synced", "type": "TEXT", "not_null": true}
+              ]
+            },
+            "sync_log": {
+              "columns": [
+                {"name": "sync_id", "type": "INTEGER", "primary_key": true, "autoincrement": true},
+                {"name": "synced_at", "type": "TEXT", "not_null": true},
+                {"name": "records_added", "type": "INTEGER", "default": 0},
+                {"name": "records_updated", "type": "INTEGER", "default": 0},
+                {"name": "source", "type": "TEXT", "not_null": true, "check": "source IN ('daily_cron','on_demand')"}
+              ]
+            }
+          }
+        },
+        "seed_records": [
+          {
+            "cve_id": "CVE-2023-34540",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+            "cvss_score": 9.8,
+            "severity": "High",
+            "affected_version_range": ">=0.0.1,<0.0.247",
+            "fixed_version": "0.0.247",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2022-21797",
+            "purl": "pkg:pypi/joblib@0.14.1",
+            "cpe": "cpe:2.3:a:joblib:joblib:0.14.1:*:*:*:*:python:*:*",
+            "cvss_score": 9.8,
+            "severity": "High",
+            "affected_version_range": "<1.2.0",
+            "fixed_version": "1.2.0",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2021-33430",
+            "purl": "pkg:pypi/numpy@1.22.0",
+            "cpe": "cpe:2.3:a:numpy:numpy:1.22.0:*:*:*:*:python:*:*",
+            "cvss_score": 5.5,
+            "severity": "Medium",
+            "affected_version_range": ">=1.9.0,<1.22.2",
+            "fixed_version": "1.22.2",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2021-33430",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2023-25399",
+            "purl": "pkg:pypi/scipy@1.6.0",
+            "cpe": "cpe:2.3:a:scipy:scipy:1.6.0:*:*:*:*:python:*:*",
+            "cvss_score": 5.5,
+            "severity": "Medium",
+            "affected_version_range": "<1.11.0",
+            "fixed_version": "1.11.0",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-25399",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2023-32681",
+            "purl": "pkg:pypi/requests@2.27.1",
+            "cpe": "cpe:2.3:a:python-requests:requests:2.27.1:*:*:*:*:python:*:*",
+            "cvss_score": 6.1,
+            "severity": "Medium",
+            "affected_version_range": ">=2.3.0,<2.31.0",
+            "fixed_version": "2.31.0",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2018-19787",
+            "purl": "pkg:pypi/lxml@4.6.3",
+            "cpe": "cpe:2.3:a:lxml:lxml:4.6.3:*:*:*:*:python:*:*",
+            "cvss_score": 6.1,
+            "severity": "Medium",
+            "affected_version_range": "<4.7.1",
+            "fixed_version": "4.7.1",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2018-19787",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2023-44271",
+            "purl": "pkg:pypi/Pillow@9.0.1",
+            "cpe": "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
+            "cvss_score": 7.5,
+            "severity": "High",
+            "affected_version_range": "<10.0.0",
+            "fixed_version": "10.0.0",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44271",
+            "last_synced": "2026-04-09T06:00:00Z"
+          },
+          {
+            "cve_id": "CVE-2022-29216",
+            "purl": "pkg:pypi/tensorflow@1.15.5",
+            "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:python:*:*",
+            "cvss_score": 8.8,
+            "severity": "High",
+            "affected_version_range": "<2.9.0",
+            "fixed_version": "2.9.0",
+            "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216",
+            "last_synced": "2026-04-09T06:00:00Z"
+          }
+        ],
+        "sync_log_seed": [
+          {
+            "sync_id": 1,
+            "synced_at": "2026-04-08T06:00:00Z",
+            "records_added": 8,
+            "records_updated": 0,
+            "source": "daily_cron"
+          },
+          {
+            "sync_id": 2,
+            "synced_at": "2026-04-09T06:00:00Z",
+            "records_added": 0,
+            "records_updated": 1,
+            "source": "daily_cron"
+          }
+        ]
+      }
+    ],
+
+    "RemediationEngine": [
+      {
+        "id": "rem_001",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2023-34540",
+        "affected_package": "langchain",
+        "current_version": "0.0.101",
+        "minimum_safe_version": "0.0.247",
+        "recommended_version": "0.0.247",
+        "upgrade_command": "pip install 'langchain>=0.0.247'",
+        "breaking_change_risk": "high",
+        "breaking_change_notes": "langchain 0.0.247+ introduced significant API changes. Review LANGCHAIN_MIGRATE.md for chain and agent migration.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540",
+        "severity": "High",
+        "cvss_score": 9.8
+      },
+      {
+        "id": "rem_002",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2022-21797",
+        "affected_package": "joblib",
+        "current_version": "0.14.1",
+        "minimum_safe_version": "1.2.0",
+        "recommended_version": "1.3.2",
+        "upgrade_command": "pip install 'joblib>=1.2.0'",
+        "breaking_change_risk": "high",
+        "breaking_change_notes": "joblib 0.14.1 → 1.2.0 is a major version jump; scikit-learn must also be upgraded from 0.24.1 to >= 1.0 to be compatible with joblib 1.2.0.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797",
+        "severity": "High",
+        "cvss_score": 9.8
+      },
+      {
+        "id": "rem_003",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2021-33430",
+        "affected_package": "numpy",
+        "current_version": "1.22.0",
+        "minimum_safe_version": "1.22.2",
+        "recommended_version": "1.26.4",
+        "upgrade_command": "pip install 'numpy>=1.22.2'",
+        "breaking_change_risk": "low",
+        "breaking_change_notes": "numpy 1.22.2 is a patch release with no breaking API changes from 1.22.0.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2021-33430",
+        "severity": "Medium",
+        "cvss_score": 5.5
+      },
+      {
+        "id": "rem_004",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2023-25399",
+        "affected_package": "scipy",
+        "current_version": "1.6.0",
+        "minimum_safe_version": "1.11.0",
+        "recommended_version": "1.13.0",
+        "upgrade_command": "pip install 'scipy>=1.11.0'",
+        "breaking_change_risk": "medium",
+        "breaking_change_notes": "scipy 1.11 removed several deprecated functions. Run scipy migration checker before upgrading in production.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-25399",
+        "severity": "Medium",
+        "cvss_score": 5.5
+      },
+      {
+        "id": "rem_005",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2023-32681",
+        "affected_package": "requests",
+        "current_version": "2.27.1",
+        "minimum_safe_version": "2.31.0",
+        "recommended_version": "2.31.0",
+        "upgrade_command": "pip install 'requests>=2.31.0'",
+        "breaking_change_risk": "low",
+        "breaking_change_notes": "requests 2.31.0 is backward-compatible. No breaking API changes from 2.27.x.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681",
+        "severity": "Medium",
+        "cvss_score": 6.1
+      },
+      {
+        "id": "rem_006",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2018-19787",
+        "affected_package": "lxml",
+        "current_version": "4.6.3",
+        "minimum_safe_version": "4.7.1",
+        "recommended_version": "5.1.0",
+        "upgrade_command": "pip install 'lxml>=4.7.1'",
+        "breaking_change_risk": "low",
+        "breaking_change_notes": "lxml 4.7.x is backward-compatible with 4.6.x. HTML cleaner behavior may differ for edge-case inputs.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2018-19787",
+        "severity": "Medium",
+        "cvss_score": 6.1
+      },
+      {
+        "id": "rem_007",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2023-44271",
+        "affected_package": "Pillow",
+        "current_version": "9.0.1",
+        "minimum_safe_version": "10.0.0",
+        "recommended_version": "10.2.0",
+        "upgrade_command": "pip install 'Pillow>=10.0.0'",
+        "breaking_change_risk": "medium",
+        "breaking_change_notes": "Pillow 10.0.0 removed several deprecated APIs (ANTIALIAS constant renamed to LANCZOS, etc.). Review Pillow migration guide before upgrading from 9.x.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44271",
+        "severity": "High",
+        "cvss_score": 7.5
+      },
+      {
+        "id": "rem_008",
+        "type": "RemediationEngine",
+        "vulnerability_id": "CVE-2022-29216",
+        "affected_package": "tensorflow",
+        "current_version": "1.15.5",
+        "minimum_safe_version": "2.9.0",
+        "recommended_version": "2.13.0",
+        "upgrade_command": "pip install 'tensorflow>=2.9.0'",
+        "breaking_change_risk": "high",
+        "breaking_change_notes": "tensorflow 1.x → 2.x is a major version change requiring migration of Session-based code to Eager execution and updating all TF1 APIs. Use tf.compat.v1 shims as an interim step.",
+        "nvd_advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216",
+        "severity": "High",
+        "cvss_score": 8.8
+      }
+    ],
+
+    "OSSToolAdapter": [
+      {
+        "id": "adapter_001",
+        "type": "OSSToolAdapter",
+        "name": "SyftGrypeAdapter",
+        "scanning_tool": "Syft",
+        "scanning_tool_version": "0.98.0",
+        "vuln_tool": "Grype",
+        "vuln_tool_version": "0.73.0",
+        "vex_tool": "OpenVEX",
+        "vex_tool_version": "0.2.5",
+        "supported_ecosystems": ["pypi", "npm", "go", "maven"],
+        "output_formats": ["cyclonedx-json", "spdx-json", "syft-json"],
+        "deduplication_enabled": true,
+        "dedup_key": "purl",
+        "config": {
+          "syft_args": ["scan", "--output", "syft-json"],
+          "grype_args": ["--output", "json", "--add-cpes-if-none"],
+          "vex_filter_path": "/config/vex-filter.json",
+          "nvd_cache_db": "step1b_nvd_cache.db"
+        },
+        "_notes": "Primary adapter used for CI/CD scans — Syft for dep discovery, Grype for vuln matching, OpenVEX for filtering"
+      },
+      {
+        "id": "adapter_002",
+        "type": "OSSToolAdapter",
+        "name": "TrivyGrypeAdapter",
+        "scanning_tool": "Trivy",
+        "scanning_tool_version": "0.50.2",
+        "vuln_tool": "Grype",
+        "vuln_tool_version": "0.73.0",
+        "vex_tool": "OpenVEX",
+        "vex_tool_version": "0.2.5",
+        "supported_ecosystems": ["pypi", "npm", "go", "maven", "cargo"],
+        "output_formats": ["cyclonedx-json", "spdx-json", "table", "sarif"],
+        "deduplication_enabled": true,
+        "dedup_key": "purl",
+        "config": {
+          "trivy_args": ["fs", "--format", "cyclonedx", "--quiet"],
+          "grype_args": ["--output", "json", "--add-cpes-if-none"],
+          "vex_filter_path": "/config/vex-filter.json",
+          "nvd_cache_db": "step1b_nvd_cache.db"
+        },
+        "_notes": "Alternate adapter — Trivy replaces Syft; useful when Trivy native vuln db is also needed"
+      }
+    ],
+
+    "CLIInterface": [
+      {
+        "id": "cli_001",
+        "type": "CLIInterface",
+        "framework": "Typer",
+        "framework_version": "0.9.0",
+        "command": "sbom-tool scan",
+        "description": "Scan a repository and produce a SBOM with vulnerability annotations",
+        "invocation_example": "sbom-tool scan /repos/TaskMatrix --format cyclonedx --output ./TaskMatrix-sbom.cdx.json",
+        "arguments": {
+          "repo_path": {"type": "Path", "required": true, "help": "Path to the source code repository"},
+          "format": {"type": "str", "required": false, "default": "cyclonedx", "choices": ["cyclonedx", "spdx"], "help": "Output SBOM format"},
+          "output": {"type": "Path", "required": false, "default": "sbom.json", "help": "Output file path"},
+          "env": {"type": "str", "required": false, "default": "development", "help": "Runtime environment label"},
+          "scan-tool": {"type": "str", "required": false, "default": "syft", "choices": ["syft", "trivy"], "help": "Dependency scanning engine"}
+        },
+        "exit_codes": {"0": "success", "1": "scan error", "2": "invalid arguments", "3": "nvd cache stale"}
+      },
+      {
+        "id": "cli_002",
+        "type": "CLIInterface",
+        "framework": "Typer",
+        "framework_version": "0.9.0",
+        "command": "sbom-tool sync",
+        "description": "Refresh the local NVD cache (on-demand)",
+        "invocation_example": "sbom-tool sync --source nvd --db ./nvd_cache.db",
+        "arguments": {
+          "source": {"type": "str", "required": false, "default": "nvd", "choices": ["nvd"], "help": "Vulnerability data source"},
+          "db": {"type": "Path", "required": false, "default": "./nvd_cache.db", "help": "Path to local NVD cache SQLite database"}
+        },
+        "exit_codes": {"0": "sync success", "1": "network or source error"}
+      },
+      {
+        "id": "cli_003",
+        "type": "CLIInterface",
+        "framework": "Typer",
+        "framework_version": "0.9.0",
+        "command": "sbom-tool scan (SPDX variant)",
+        "description": "Scan and export in SPDX JSON format",
+        "invocation_example": "sbom-tool scan /repos/handson-ml --format spdx --output ./handson-ml-sbom.spdx.json",
+        "arguments": {
+          "repo_path": {"type": "Path", "required": true},
+          "format": {"type": "str", "default": "spdx"},
+          "output": {"type": "Path", "default": "sbom.spdx.json"}
+        },
+        "exit_codes": {"0": "success", "1": "scan error"}
+      }
+    ]
+  }
+}

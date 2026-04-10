@@ -1,0 +1,510 @@
+{
+  "ledger_version": "1.0",
+  "session_id": "SBOM-20260409-sb01",
+  "created_at": "2026-04-09T00:00:00Z",
+  "source_manifest": "step1_source_doc_manifest.json",
+  "summary": {
+    "total_entities": 8,
+    "total_relationships": 6,
+    "total_rules": 7,
+    "total_workflows": 2,
+    "total_roles": 0,
+    "total_screens": 0,
+    "total_ambiguities": 3,
+    "documents_processed": 1,
+    "documents_total": 1
+  },
+
+  "entities": [
+    {
+      "name": "DependencyInventory",
+      "description": "Full dependency record for a scanned codebase",
+      "attributes": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+        },
+        {
+          "name": "exact_version",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+        },
+        {
+          "name": "supplier",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+        },
+        {
+          "name": "dependency_type",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["direct", "transitive"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+        },
+        {
+          "name": "purl",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": "PURL format",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #5", "confidence": "verbatim"}
+        },
+        {
+          "name": "cpe",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": "CPE format",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #5", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [
+        {
+          "target": "VulnerabilityRecord",
+          "type": "has_many",
+          "cardinality": "1:N",
+          "required": false,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #5", "confidence": "inferred", "reasoning": "Vulnerability mapping is performed per dependency using PURL/CPE identifiers listed on the dependency"}
+        }
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+    },
+    {
+      "name": "SBOMDocument",
+      "description": "Machine-readable output file in SPDX or CycloneDX JSON format",
+      "attributes": [
+        {
+          "name": "format",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["SPDX JSON", "CycloneDX JSON"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #4 and Key Decisions", "confidence": "verbatim"}
+        },
+        {
+          "name": "dependencies",
+          "type": "array",
+          "required": true,
+          "default_value": null,
+          "validation": "Aligned to SPDX/CycloneDX baseline fields",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+        },
+        {
+          "name": "remediation_enrichment",
+          "type": "object",
+          "required": false,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse table — Output format row", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [
+        {
+          "target": "DependencyInventory",
+          "type": "contains",
+          "cardinality": "1:N",
+          "required": true,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3, #4", "confidence": "inferred", "reasoning": "SBOM document is the exportable output that contains the dependency inventory"}
+        }
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #4", "confidence": "verbatim"}
+    },
+    {
+      "name": "VulnerabilityRecord",
+      "description": "A vulnerability entry mapped from NVD for a dependency",
+      "attributes": [
+        {
+          "name": "vulnerability_id",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": "CVE identifier from NVD",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #5", "confidence": "inferred", "reasoning": "NVD is the database source; NVD entries are CVE-identified"}
+        },
+        {
+          "name": "cvss_severity",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["High", "Medium", "Low"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+        },
+        {
+          "name": "remediation_recommendation",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+        },
+        {
+          "name": "advisory_link",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": "URL",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+        },
+        {
+          "name": "vex_filtered",
+          "type": "boolean",
+          "required": false,
+          "default_value": false,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — Grype/OpenVEX row", "confidence": "inferred", "reasoning": "Grype + OpenVEX filtering means some vulnerabilities are suppressed; a filtered flag tracks this"}
+        }
+      ],
+      "relationships": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #5, #6", "confidence": "verbatim"}
+    },
+    {
+      "name": "NVDCache",
+      "description": "Local cache of NVD vulnerability data, populated by periodic sync",
+      "attributes": [
+        {
+          "name": "last_synced_at",
+          "type": "date",
+          "required": true,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "inferred", "reasoning": "Periodic sync implies a last-synced timestamp for staleness checking"}
+        },
+        {
+          "name": "sync_frequency",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["daily", "on-demand"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [
+        {
+          "target": "VulnerabilityRecord",
+          "type": "has_many",
+          "cardinality": "1:N",
+          "required": true,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "inferred", "reasoning": "Cache stores vulnerability entries sourced from NVD"}
+        }
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "verbatim"}
+    },
+    {
+      "name": "ScanJob",
+      "description": "A single scan execution against one source code repository",
+      "attributes": [
+        {
+          "name": "repository_path",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": "Must point to a single source code repository",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #1 and Key Decisions", "confidence": "verbatim"}
+        },
+        {
+          "name": "runtime_environment",
+          "type": "string",
+          "required": true,
+          "default_value": null,
+          "validation": "Single runtime environment per run (e.g., development)",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #2", "confidence": "verbatim"}
+        },
+        {
+          "name": "output_format",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["spdx", "cyclonedx"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #4 and Key Decisions", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [
+        {
+          "target": "SBOMDocument",
+          "type": "produces",
+          "cardinality": "1:1",
+          "required": true,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #4", "confidence": "inferred", "reasoning": "Each scan run produces one SBOM export file"}
+        },
+        {
+          "target": "NVDCache",
+          "type": "references",
+          "cardinality": "N:1",
+          "required": true,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "verbatim"}
+        }
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #1, #2", "confidence": "verbatim"}
+    },
+    {
+      "name": "OSSToolAdapter",
+      "description": "Unified output + deduplication wrapper over Trivy/Syft + Grype scanning tools",
+      "attributes": [
+        {
+          "name": "scanning_tool",
+          "type": "enum",
+          "required": true,
+          "enum_values": ["Trivy", "Syft"],
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — Dependency scanning row", "confidence": "verbatim"}
+        },
+        {
+          "name": "vuln_tool",
+          "type": "string",
+          "required": true,
+          "default_value": "Grype",
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — Vulnerability matching row", "confidence": "verbatim"}
+        },
+        {
+          "name": "vex_tool",
+          "type": "string",
+          "required": false,
+          "default_value": "OpenVEX",
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — VEX filtering row", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse table", "confidence": "verbatim"}
+    },
+    {
+      "name": "CLIInterface",
+      "description": "Command-line interface entry point, suitable for CI/CD pipeline integration",
+      "attributes": [
+        {
+          "name": "framework",
+          "type": "string",
+          "required": true,
+          "value": "Typer",
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — CLI framework row", "confidence": "verbatim"},
+          "_cq3_resolution": {
+            "resolved_at": "2026-04-09",
+            "resolved_value": "Typer",
+            "rationale": "Same author as FastAPI (Sebastián Ramírez); same type-hint-driven conventions; consistent code style across CLI and API layers"
+          }
+        }
+      ],
+      "relationships": [
+        {
+          "target": "ScanJob",
+          "type": "initiates",
+          "cardinality": "1:1",
+          "required": true,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #1", "confidence": "inferred", "reasoning": "CLI is the entry point; invoking the CLI starts a ScanJob"}
+        }
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — CLI framework row", "confidence": "verbatim"}
+    },
+    {
+      "name": "RemediationEngine",
+      "description": "Novel layer that enriches SPDX/CycloneDX output with remediation recommendations and advisory links",
+      "attributes": [
+        {
+          "name": "advisory_link",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": "URL",
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6 and OSS Reuse — Output format row", "confidence": "verbatim"}
+        },
+        {
+          "name": "remediation_recommendation",
+          "type": "string",
+          "required": false,
+          "default_value": null,
+          "validation": null,
+          "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+        }
+      ],
+      "relationships": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse — Output format row, Key Decisions", "confidence": "verbatim"}
+    }
+  ],
+
+  "rules": [
+    {
+      "name": "Single Repository Per Scan",
+      "category": "constraint",
+      "conditions": ["CLI tool is invoked with one source code repository path"],
+      "values": {"repositories_per_run": 1},
+      "inputs": ["repository_path"],
+      "outputs": ["scan_scope"],
+      "priority": 1,
+      "exceptions": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #1 and Key Decisions", "confidence": "verbatim"}
+    },
+    {
+      "name": "Single Runtime Environment Per Run",
+      "category": "constraint",
+      "conditions": ["Single runtime environment focus (e.g., development) for discovery and reporting"],
+      "values": {"environments_per_run": 1},
+      "inputs": ["runtime_environment"],
+      "outputs": ["scan_scope"],
+      "priority": 2,
+      "exceptions": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #2", "confidence": "verbatim"}
+    },
+    {
+      "name": "SPDX/CycloneDX Baseline Field Alignment",
+      "category": "validation",
+      "conditions": ["Dependency inventory fields must align to SPDX/CycloneDX baseline fields"],
+      "values": {"required_fields": ["name", "exact_version", "supplier", "dependency_type"]},
+      "inputs": ["dependency_record"],
+      "outputs": ["validated_dependency_record"],
+      "priority": 3,
+      "exceptions": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #3", "confidence": "verbatim"}
+    },
+    {
+      "name": "CVSS Severity Classification",
+      "category": "business_logic",
+      "conditions": ["Each vulnerability is classified by CVSS score into High, Medium, or Low"],
+      "values": {"severity_levels": ["High", "Medium", "Low"]},
+      "inputs": ["cvss_score"],
+      "outputs": ["cvss_severity"],
+      "priority": 4,
+      "exceptions": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+    },
+    {
+      "name": "Remediation Per Vulnerability",
+      "category": "business_logic",
+      "conditions": ["Each vulnerability entry must include remediation recommendation or advisory link"],
+      "values": {},
+      "inputs": ["vulnerability_record"],
+      "outputs": ["enriched_vulnerability_record"],
+      "priority": 5,
+      "exceptions": ["Either remediation_recommendation or advisory_link is acceptable; both optional but at least one expected"],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #6", "confidence": "verbatim"}
+    },
+    {
+      "name": "No Live NVD API Call at Scan Time",
+      "category": "constraint",
+      "conditions": ["Scan must not make live NVD API calls; must use local NVD cache only"],
+      "values": {},
+      "inputs": ["nvd_cache"],
+      "outputs": ["vulnerability_match"],
+      "priority": 6,
+      "exceptions": ["Real-time NVD API calls are explicitly deferred to Phase 2"],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "verbatim"}
+    },
+    {
+      "name": "OSS-First Build Strategy",
+      "category": "business_logic",
+      "conditions": ["~60% of the Software BOM pipeline is battle-tested OSS; build only what OSS doesn't provide"],
+      "values": {
+        "oss_components": ["Trivy/Syft", "Grype", "OpenVEX", "NVD", "CycloneDX/SPDX", "Typer", "FastAPI", "Docker"],
+        "novel_layers": ["Unified output + deduplication", "VEX reachability filtering", "Local cache + PURL/CPE mapping", "Remediation enrichment layer"]
+      },
+      "inputs": ["component_requirements"],
+      "outputs": ["build_vs_reuse_decision"],
+      "priority": 7,
+      "exceptions": [],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "OSS Reuse table and narrative", "confidence": "verbatim"},
+      "_cq3_note": "oss_components updated from 'Click/Typer' to 'Typer' following CQ-3 resolution on 2026-04-09"
+    }
+  ],
+
+  "workflows": [
+    {
+      "name": "Scan Workflow",
+      "states": [
+        "idle",
+        "scanning_dependencies",
+        "deduplicating_output",
+        "matching_vulnerabilities",
+        "filtering_vex",
+        "enriching_remediation",
+        "exporting_sbom"
+      ],
+      "transitions": [
+        {"from": "idle", "to": "scanning_dependencies", "trigger": "CLI invocation with repository path", "guard": "Single repo, single environment specified", "actor": "CLI/CI pipeline"},
+        {"from": "scanning_dependencies", "to": "deduplicating_output", "trigger": "Trivy/Syft scan complete", "guard": null, "actor": "OSSToolAdapter"},
+        {"from": "deduplicating_output", "to": "matching_vulnerabilities", "trigger": "Deduplication complete", "guard": null, "actor": "OSSToolAdapter"},
+        {"from": "matching_vulnerabilities", "to": "filtering_vex", "trigger": "NVD cache lookup complete via PURL/CPE", "guard": "Local cache used — no live API call", "actor": "NVDCache"},
+        {"from": "filtering_vex", "to": "enriching_remediation", "trigger": "OpenVEX filtering applied", "guard": null, "actor": "OSSToolAdapter"},
+        {"from": "enriching_remediation", "to": "exporting_sbom", "trigger": "RemediationEngine enrichment complete", "guard": null, "actor": "RemediationEngine"},
+        {"from": "exporting_sbom", "to": "idle", "trigger": "SPDX or CycloneDX JSON file written", "guard": null, "actor": "SBOMDocument"}
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #1–#6 and OSS Reuse table", "confidence": "inferred", "reasoning": "Workflow steps derived from sequential OSS reuse table rows (scanning → matching → filtering → enrichment → export) combined with in-scope requirements #1–#6"}
+    },
+    {
+      "name": "NVD Sync Workflow",
+      "states": ["idle", "syncing_nvd", "updating_cache", "sync_complete"],
+      "transitions": [
+        {"from": "idle", "to": "syncing_nvd", "trigger": "Daily schedule or on-demand refresh command", "guard": null, "actor": "Scheduler / CLI"},
+        {"from": "syncing_nvd", "to": "updating_cache", "trigger": "NVD data retrieved", "guard": null, "actor": "NVDCache"},
+        {"from": "updating_cache", "to": "sync_complete", "trigger": "Local cache written", "guard": null, "actor": "NVDCache"},
+        {"from": "sync_complete", "to": "idle", "trigger": "Sync job finishes", "guard": null, "actor": "Scheduler"}
+      ],
+      "_source": {"document": "SBOM_POC_Scope.md", "section": "In Scope #7", "confidence": "verbatim"}
+    }
+  ],
+
+  "roles": [],
+
+  "screens": [],
+
+  "ambiguities": [
+    {
+      "id": "CQ-3",
+      "description": "CLI framework choice — resolved: Typer selected over Click",
+      "documents": ["SBOM_POC_Scope.md:OSS Reuse — CLI framework row"],
+      "severity": "low",
+      "requires_clarification": false,
+      "resolved": true,
+      "resolved_at": "2026-04-09",
+      "resolved_value": "Typer",
+      "resolution_rationale": "Same author as FastAPI (Sebastián Ramírez); same type-hint-driven conventions; consistent code style across CLI and API layers",
+      "_original_description": "CLI framework choice is 'Click / Typer' — either is acceptable but the spec does not specify a single required choice"
+    },
+    {
+      "description": "Scanning engine is listed as 'Trivy / Syft' — either may be used. Spec does not mandate one over the other",
+      "documents": ["SBOM_POC_Scope.md:OSS Reuse — Dependency scanning row"],
+      "severity": "low",
+      "requires_clarification": false,
+      "_note": "Both tools produce compatible outputs; treated as implementation choice"
+    },
+    {
+      "description": "Remediation field per vulnerability: spec says 'remediation recommendation or advisory link' — unclear whether both are always required or one suffices",
+      "documents": ["SBOM_POC_Scope.md:In Scope #6"],
+      "severity": "medium",
+      "requires_clarification": true,
+      "_note": "Spec uses 'or' — captured as either/or; flagged for clarification if strict schema validation is needed"
+    }
+  ],
+
+  "cross_references": [
+    {
+      "from_document": "SBOM_POC_Scope.md",
+      "from_section": "In Scope #5",
+      "references": "SBOM_POC_Scope.md:OSS Reuse — Vulnerability matching row",
+      "context": "Vulnerability mapping via NVD using PURL/CPE corresponds to the Grype OSS tool entry in the reuse table"
+    },
+    {
+      "from_document": "SBOM_POC_Scope.md",
+      "from_section": "Key Decisions",
+      "references": "SBOM_POC_Scope.md:OSS Reuse table",
+      "context": "Key Decisions consolidate and confirm the OSS tool choices already enumerated in the reuse table"
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "session_id": "SBOM-20260409-sb01",
+  "generated_at": "2026-04-09T00:00:00Z",
+  "step": "step2",
+  "output_file": "step2_bdd_scenarios.feature",
+  "agent": "step2-agent-bdd",
+
+  "architecture_analysis": {
+    "architecture_type": "DETERMINISTIC_TOOL",
+    "no_ai": true,
+    "no_frontend": true,
+    "packaging": "Docker + CLI (Typer) + FastAPI",
+    "scanning_engines": ["Syft", "Trivy"],
+    "vulnerability_engine": "Grype",
+    "vex_engine": "OpenVEX",
+    "output_formats": ["CycloneDX 1.4 JSON", "SPDX 2.3 JSON"],
+    "data_store": "SQLite (local NVD cache)",
+    "confidence_score": 0.99,
+    "mismatch_warnings": []
+  },
+
+  "complexity_assessment": {
+    "complexity_tier": "MODERATE",
+    "total_score": 11,
+    "scoring_breakdown": {
+      "tool_count": 2,
+      "domain_risk": 2,
+      "workflow_complexity": 2,
+      "data_sensitivity": 2,
+      "user_interaction_patterns": 1,
+      "ai_bonuses": 0,
+      "ddm_entity_contribution": 1,
+      "ddm_rule_contribution": 1
+    },
+    "notes": "DETERMINISTIC_TOOL with no AI/ML components; AI orchestration and content generation bonuses do not apply"
+  },
+
+  "scenario_distribution": {
+    "total_scenarios": 20,
+    "feature_1_business_functionality": {
+      "count": 14,
+      "categories": {
+        "happy_path": 3,
+        "edge_case_transitive_cve": 1,
+        "edge_case_vex_filtering": 1,
+        "edge_case_cvss_boundary": 2,
+        "field_coverage": 3,
+        "error_path": 2,
+        "format_compliance": 2
+      }
+    },
+    "feature_2_infrastructure_orchestration": {
+      "count": 6,
+      "categories": {
+        "nvd_cache_on_demand_sync": 1,
+        "nvd_cache_scheduled_sync": 1,
+        "deduplication": 1,
+        "network_isolation": 1,
+        "dual_format": 1,
+        "workflow_transitions_end_to_end": 1
+      }
+    }
+  },
+
+  "ddm_coverage": {
+    "source": "document-driven-mode",
+    "bdd_focus_items_total": 14,
+    "bdd_focus_items_covered": 14,
+    "ledger_rules_total": 7,
+    "ledger_rules_covered": 7,
+    "ledger_rules_by_scenario": {
+      "Single Repository Per Scan": ["Scenario 12", "Scenario 20"],
+      "Single Runtime Environment Per Run": ["Scenario 20"],
+      "SPDX/CycloneDX Baseline Field Alignment": ["Scenario 1", "Scenario 2", "Scenario 8", "Scenario 9"],
+      "CVSS Severity Classification": ["Scenario 10", "Scenario 11"],
+      "Remediation Per Vulnerability": ["Scenario 6"],
+      "No Live NVD API Call at Scan Time": ["Scenario 18", "Scenario 20 (guard)"],
+      "OSS-First Build Strategy": ["Scenario 17 (deduplication)", "Scenario 5 (VEX)", "Scenario 20 (workflow)"]
+    },
+    "workflow_transitions_total": 11,
+    "workflow_transitions_covered": 11,
+    "workflow_coverage_by_scenario": {
+      "Scan Workflow (7 transitions)": "Scenario 20 (end-to-end) + Scenarios 1-3 (via happy path invocations)",
+      "NVD Sync Workflow (4 transitions)": "Scenario 15 (on-demand) + Scenario 16 (scheduled)"
+    },
+    "gap_exclusions": [],
+    "thin_coverage_areas_reinforced": [],
+    "open_clarifications_in_scenarios": {
+      "CQ-1": {
+        "topic": "CVSS numeric thresholds",
+        "resolution_applied": "CVSS v3.1 standard banding — High >= 7.0, Medium 4.0–6.9, Low < 4.0",
+        "scenarios_affected": ["Scenario 10", "Scenario 11"],
+        "comment": "Thresholds applied in Scenario 10 Examples table and referenced in scenario comments throughout"
+      },
+      "CQ-2": {
+        "topic": "Remediation field optionality",
+        "resolution_applied": "advisory_url always present as minimum; recommendation is additional enrichment",
+        "scenarios_affected": ["Scenario 6"],
+        "comment": "Scenario 6 tests both fields; comments note CQ-2 resolution"
+      }
+    }
+  },
+
+  "mock_data_coverage": {
+    "mock_entities_used_pct": 100,
+    "mock_scenarios_coverage_pct": 100,
+    "entities_covered": {
+      "ScanJob": ["scan_001 (TaskMatrix)", "scan_002 (handson-ml)", "scan_003 (clean-api)"],
+      "DependencyInventory": [
+        "dep_tm_001 (langchain 0.0.101)",
+        "dep_tm_003 (requests 2.27.1 transitive)",
+        "dep_tm_006 (lxml 4.6.3 transitive)",
+        "dep_hml_001 (numpy 1.22.0)",
+        "dep_hml_004 (scipy 1.6.0)",
+        "dep_hml_006 (Pillow 9.0.1)",
+        "dep_hml_007 (joblib 0.14.1 transitive)",
+        "dep_hml_009 (tensorflow 1.15.5)",
+        "dep_cl_001 (flask 3.0.0)",
+        "dep_cl_002 through dep_cl_004 (transitive)"
+      ],
+      "VulnerabilityRecord": [
+        "vuln_001 (CVE-2023-34540, langchain)",
+        "vuln_002 (CVE-2022-21797, joblib)",
+        "vuln_003 (CVE-2021-33430, numpy)",
+        "vuln_004 (CVE-2023-25399, scipy)",
+        "vuln_005 (CVE-2023-32681, requests)",
+        "vuln_006 (CVE-2018-19787, lxml — VEX filtered)",
+        "vuln_007 (CVE-2023-44271, Pillow)",
+        "vuln_008 (CVE-2022-29216, tensorflow)"
+      ],
+      "NVDCache": ["nvd_cache_001"],
+      "OSSToolAdapter": ["adapter_001 (Syft + Grype + OpenVEX)"],
+      "SBOMDocument": ["sbom_001 (CycloneDX TaskMatrix)", "sbom_002 (SPDX handson-ml)", "sbom_003 (CycloneDX clean-api)"]
+    },
+    "mock_scenarios_tested": {
+      "scenario_001": "Scenario 1 (happy path TaskMatrix CycloneDX)",
+      "scenario_002": "Scenario 2 (happy path handson-ml SPDX)",
+      "scenario_003": "Scenario 3 (clean-api zero CVEs)",
+      "scenario_004": "Scenario 15 (on-demand NVD sync)",
+      "scenario_005": "Scenario 4 (transitive CVE attribution)",
+      "scenario_006": "Scenario 5 (VEX filtering)",
+      "scenario_007": "Scenario 14 (stale cache warning)",
+      "scenario_008": "Scenario 17 (deduplication)",
+      "scenario_009": "Scenario 10 (CVSS boundaries)",
+      "scenario_010": "Scenario 13 (unsupported language)"
+    }
+  },
+
+  "eval_metrics_summary": {
+    "total_metrics_defined": 34,
+    "deterministic_correctness_metrics": [
+      "exit_code_accuracy",
+      "schema_validation_score",
+      "dependency_completeness_score",
+      "vulnerability_classification_accuracy",
+      "deduplication_accuracy",
+      "stale_cache_detection_score",
+      "remediation_coverage_score",
+      "purl_coverage_score",
+      "cpe_coverage_score",
+      "vex_filtering_accuracy",
+      "transitive_cve_attribution_accuracy",
+      "null_cvss_handling_accuracy",
+      "single_repo_constraint_enforcement",
+      "unsupported_language_exit_code_accuracy",
+      "live_nvd_api_call_count",
+      "local_cache_lookup_success_rate",
+      "cache_sync_accuracy_score",
+      "cache_update_completeness",
+      "workflow_stage_completion_rate",
+      "workflow_guard_enforcement_score",
+      "end_to_end_scan_success_rate"
+    ],
+    "notes": "This is a deterministic CLI tool. Eval metrics use exact targets (= 1.0, = 0) rather than probabilistic thresholds. No AI/ML metrics apply."
+  },
+
+  "quality_validation": {
+    "overall_quality_score": "HIGH",
+    "gherkin_syntax_valid": true,
+    "scenario_independence": true,
+    "mock_data_consistency": true,
+    "requirements_alignment": true,
+    "ddm_focus_coverage": "14 of 14 (100%)",
+    "rule_coverage": "7 of 7 (100%)",
+    "workflow_transition_coverage": "11 of 11 (100%)",
+    "critical_issues": [],
+    "warnings": [
+      "CQ-1 (CVSS thresholds) resolved with standard CVSS v3.1 banding — confirm with stakeholder",
+      "CQ-2 (remediation optionality) resolved with advisory_url as minimum — confirm with stakeholder"
+    ]
+  }
+}

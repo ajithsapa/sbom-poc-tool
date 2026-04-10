@@ -1,0 +1,545 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01",
+    "domain": "Developer Tooling — Software Supply Chain Security",
+    "scenario_count": 10,
+    "categories": ["happy_path", "error_path", "edge_case", "integration", "performance"],
+    "generated_at": "2026-04-09T10:00:00Z",
+    "source_agent": "step1b-agent-mockdata",
+    "bdd_focus_alignment": [
+      "Happy path: scan Python repo and export CycloneDX JSON",
+      "Happy path: scan JS/TS repo and export SPDX JSON",
+      "CVSS severity classification: High, Medium, Low assigned per vulnerability",
+      "Remediation enrichment: at least one of (recommendation, advisory link) per vulnerability",
+      "VEX filtering: suppressed vulnerabilities not included in output",
+      "No live NVD API call at scan time",
+      "NVD sync: daily schedule and on-demand refresh",
+      "Dependency completeness: direct + transitive captured",
+      "PURL/CPE identifier presence",
+      "CI/CD gate: non-zero exit code on scan error"
+    ]
+  },
+
+  "scenarios": [
+
+    {
+      "id": "scenario_001",
+      "name": "Scan Python LLM project — detects High CVE in langchain — outputs CycloneDX JSON with remediation",
+      "category": "happy_path",
+      "description": "Scans TaskMatrix (LLM/Agent stack) with langchain==0.0.101. Expects Syft to discover all 8 dependencies (direct + transitive), Grype to match CVE-2023-34540 (CVSS 9.8 HIGH) on langchain, and the SBOM output to include a CycloneDX JSON document with remediation enrichment pointing to the minimum safe version.",
+      "bdd_focus": ["Happy path: scan Python repo and export CycloneDX JSON", "CVSS severity classification", "Remediation enrichment"],
+      "preconditions": {
+        "repository_path": "/repos/TaskMatrix",
+        "language": "Python",
+        "requirements_file": "requirements.txt",
+        "nvd_cache_populated": true,
+        "nvd_cache_freshness_days": 0
+      },
+      "input": {
+        "scan_id": "scan_001",
+        "cli_invocation": "sbom-tool scan /repos/TaskMatrix --format cyclonedx --output ./TaskMatrix-sbom.cdx.json",
+        "cli_entity_ref": "cli_001",
+        "adapter_entity_ref": "adapter_001",
+        "dependencies": [
+          {"name": "langchain", "version": "0.0.101", "type": "direct", "purl": "pkg:pypi/langchain@0.0.101"},
+          {"name": "openai", "version": "0.27.2", "type": "direct", "purl": "pkg:pypi/openai@0.27.2"},
+          {"name": "requests", "version": "2.27.1", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/requests@2.27.1"},
+          {"name": "numpy", "version": "1.23.5", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/numpy@1.23.5"},
+          {"name": "pydantic", "version": "1.10.4", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/pydantic@1.10.4"},
+          {"name": "lxml", "version": "4.6.3", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/lxml@4.6.3"},
+          {"name": "aiohttp", "version": "3.8.1", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/aiohttp@3.8.1"},
+          {"name": "tenacity", "version": "8.1.0", "type": "transitive", "via": "langchain", "purl": "pkg:pypi/tenacity@8.1.0"}
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "sbom_format": "CycloneDX JSON",
+        "sbom_spec_version": "1.4",
+        "output_file": "./TaskMatrix-sbom.cdx.json",
+        "schema_valid": true,
+        "dependency_count": 8,
+        "vulnerability_count": 3,
+        "vulnerabilities": [
+          {
+            "cve_id": "CVE-2023-34540",
+            "package": "langchain@0.0.101",
+            "cvss_score": 9.8,
+            "severity": "High",
+            "remediation_present": true,
+            "fix_version": "0.0.247"
+          },
+          {
+            "cve_id": "CVE-2023-32681",
+            "package": "requests@2.27.1",
+            "cvss_score": 6.1,
+            "severity": "Medium",
+            "remediation_present": true,
+            "fix_version": "2.31.0"
+          },
+          {
+            "cve_id": "CVE-2018-19787",
+            "package": "lxml@4.6.3",
+            "cvss_score": 6.1,
+            "severity": "Medium",
+            "remediation_present": true,
+            "fix_version": "4.7.1"
+          }
+        ],
+        "purl_present_on_all_deps": true,
+        "cpe_present_on_vulnerable_deps": true,
+        "remediation_fields_present": true,
+        "no_live_nvd_api_calls": true
+      },
+      "assertions": [
+        "SBOM output file exists and parses as valid CycloneDX 1.4 JSON",
+        "components array contains exactly 8 entries",
+        "vulnerabilities array contains CVE-2023-34540 mapped to langchain@0.0.101 with severity=High and cvss=9.8",
+        "remediation_enrichment contains fix_version for each CVE",
+        "all components have non-empty purl fields",
+        "exit code is 0",
+        "zero network calls to nvd.nist.gov during scan (cache-only assertion)"
+      ]
+    },
+
+    {
+      "id": "scenario_002",
+      "name": "Scan classic ML project — detects mixed severity CVEs — outputs SPDX JSON",
+      "category": "happy_path",
+      "description": "Scans handson-ml (classic ML/DS stack) with numpy==1.22.0, scipy==1.6.0, scikit-learn==0.24.1, Pillow==9.0.1, tensorflow==1.15.5, and joblib==0.14.1 (transitive). Expects Grype to match 5 CVEs spanning High (joblib, Pillow, tensorflow) and Medium (numpy, scipy) bands. Output is SPDX 2.3 JSON. Tests severity distribution and multi-band output.",
+      "category": "happy_path",
+      "bdd_focus": ["Happy path: scan repo and export SPDX JSON", "CVSS severity classification: High/Medium/Low", "Dependency completeness: direct + transitive"],
+      "preconditions": {
+        "repository_path": "/repos/handson-ml",
+        "language": "Python",
+        "requirements_file": "requirements.txt",
+        "nvd_cache_populated": true,
+        "nvd_cache_freshness_days": 0
+      },
+      "input": {
+        "scan_id": "scan_002",
+        "cli_invocation": "sbom-tool scan /repos/handson-ml --format spdx --output ./handson-ml-sbom.spdx.json",
+        "cli_entity_ref": "cli_003",
+        "adapter_entity_ref": "adapter_001",
+        "dependencies": [
+          {"name": "numpy", "version": "1.22.0", "type": "direct", "purl": "pkg:pypi/numpy@1.22.0"},
+          {"name": "pandas", "version": "1.2.2", "type": "direct", "purl": "pkg:pypi/pandas@1.2.2"},
+          {"name": "scikit-learn", "version": "0.24.1", "type": "direct", "purl": "pkg:pypi/scikit-learn@0.24.1"},
+          {"name": "scipy", "version": "1.6.0", "type": "direct", "purl": "pkg:pypi/scipy@1.6.0"},
+          {"name": "matplotlib", "version": "3.3.4", "type": "direct", "purl": "pkg:pypi/matplotlib@3.3.4"},
+          {"name": "Pillow", "version": "9.0.1", "type": "direct", "purl": "pkg:pypi/Pillow@9.0.1"},
+          {"name": "tensorflow", "version": "1.15.5", "type": "direct", "purl": "pkg:pypi/tensorflow@1.15.5"},
+          {"name": "joblib", "version": "0.14.1", "type": "transitive", "via": "scikit-learn", "purl": "pkg:pypi/joblib@0.14.1"},
+          {"name": "threadpoolctl", "version": "2.1.0", "type": "transitive", "via": "scikit-learn", "purl": "pkg:pypi/threadpoolctl@2.1.0"}
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "sbom_format": "SPDX JSON",
+        "sbom_spec_version": "SPDX-2.3",
+        "output_file": "./handson-ml-sbom.spdx.json",
+        "schema_valid": true,
+        "dependency_count": 9,
+        "vulnerability_count": 5,
+        "vulnerabilities": [
+          {
+            "cve_id": "CVE-2022-21797",
+            "package": "joblib@0.14.1",
+            "cvss_score": 9.8,
+            "severity": "High",
+            "dep_type": "transitive",
+            "remediation_present": true,
+            "fix_version": "1.2.0"
+          },
+          {
+            "cve_id": "CVE-2023-44271",
+            "package": "Pillow@9.0.1",
+            "cvss_score": 7.5,
+            "severity": "High",
+            "remediation_present": true,
+            "fix_version": "10.0.0"
+          },
+          {
+            "cve_id": "CVE-2022-29216",
+            "package": "tensorflow@1.15.5",
+            "cvss_score": 8.8,
+            "severity": "High",
+            "remediation_present": true,
+            "fix_version": "2.9.0"
+          },
+          {
+            "cve_id": "CVE-2021-33430",
+            "package": "numpy@1.22.0",
+            "cvss_score": 5.5,
+            "severity": "Medium",
+            "remediation_present": true,
+            "fix_version": "1.22.2"
+          },
+          {
+            "cve_id": "CVE-2023-25399",
+            "package": "scipy@1.6.0",
+            "cvss_score": 5.5,
+            "severity": "Medium",
+            "remediation_present": true,
+            "fix_version": "1.11.0"
+          }
+        ],
+        "severity_distribution": {"High": 3, "Medium": 2, "Low": 0},
+        "purl_present_on_all_deps": true,
+        "spdx_creation_info_present": true,
+        "spdx_packages_array_present": true,
+        "no_live_nvd_api_calls": true
+      },
+      "assertions": [
+        "SBOM output parses as valid SPDX 2.3 JSON with spdxVersion and dataLicense fields",
+        "packages array contains exactly 9 entries with SPDXID, name, versionInfo, externalRefs",
+        "joblib 0.14.1 is present in packages array with transitive comment",
+        "CVE-2022-21797 is mapped to joblib@0.14.1 in vulnerability output",
+        "severity distribution contains at least three High, at least two Medium",
+        "all vulnerable packages have both purl and CPE in externalRefs",
+        "exit code is 0"
+      ]
+    },
+
+    {
+      "id": "scenario_003",
+      "name": "Scan clean project — no CVEs — outputs SBOM with empty vulnerability list",
+      "category": "happy_path",
+      "description": "Scans clean-api, a minimal Python Flask web service with no known CVEs in any of its 4 dependencies. Grype should match zero vulnerabilities from the NVD cache. Output CycloneDX JSON must have an empty vulnerabilities array. Tests that the tool does not fabricate CVEs and exits cleanly.",
+      "bdd_focus": ["Happy path: scan Python repo and export CycloneDX JSON", "CI/CD gate: exit 0 on clean scan"],
+      "preconditions": {
+        "repository_path": "/repos/clean-api",
+        "language": "Python",
+        "requirements_file": "requirements.txt",
+        "nvd_cache_populated": true,
+        "nvd_cache_freshness_days": 0
+      },
+      "input": {
+        "scan_id": "scan_003",
+        "cli_invocation": "sbom-tool scan /repos/clean-api --format cyclonedx --output ./clean-api-sbom.cdx.json",
+        "adapter_entity_ref": "adapter_001",
+        "dependencies": [
+          {"name": "flask", "version": "3.0.0", "type": "direct", "purl": "pkg:pypi/flask@3.0.0"},
+          {"name": "click", "version": "8.1.7", "type": "transitive", "via": "flask", "purl": "pkg:pypi/click@8.1.7"},
+          {"name": "werkzeug", "version": "3.0.1", "type": "transitive", "via": "flask", "purl": "pkg:pypi/werkzeug@3.0.1"},
+          {"name": "itsdangerous", "version": "2.1.2", "type": "transitive", "via": "flask", "purl": "pkg:pypi/itsdangerous@2.1.2"}
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "sbom_format": "CycloneDX JSON",
+        "schema_valid": true,
+        "dependency_count": 4,
+        "vulnerability_count": 0,
+        "vulnerabilities": [],
+        "remediation_enrichment": {},
+        "purl_present_on_all_deps": true
+      },
+      "assertions": [
+        "CycloneDX output is schema-valid",
+        "components array has exactly 4 entries",
+        "vulnerabilities array is empty ([])",
+        "remediation_enrichment object is empty ({})",
+        "exit code is 0",
+        "stdout contains no severity labels (High/Medium/Low)"
+      ]
+    },
+
+    {
+      "id": "scenario_004",
+      "name": "NVD cache refresh — on-demand sync downloads and stores new CVE records",
+      "category": "integration",
+      "description": "Invokes sbom-tool sync to refresh the local NVD cache on-demand. Simulates downloading 3 new CVE records and updating 1 existing record. Tests that the sync_log table is updated, records_added and records_updated are accurate, and the cache last_synced timestamp advances.",
+      "bdd_focus": ["NVD sync: on-demand refresh command populates local cache"],
+      "preconditions": {
+        "nvd_cache_db_path": "outputs/sessions/SBOM-20260409-sb01/step1b_nvd_cache.db",
+        "current_record_count": 8,
+        "last_sync_at": "2026-04-09T06:00:00Z",
+        "mock_nvd_response": {
+          "new_records": [
+            {
+              "cve_id": "CVE-2024-11001",
+              "purl": "pkg:pypi/aiohttp@3.8.1",
+              "cvss_score": 7.5,
+              "severity": "High",
+              "affected_version_range": "<3.9.0",
+              "fixed_version": "3.9.0"
+            },
+            {
+              "cve_id": "CVE-2024-11002",
+              "purl": "pkg:pypi/pydantic@1.10.4",
+              "cvss_score": 5.0,
+              "severity": "Medium",
+              "affected_version_range": "<2.0.0",
+              "fixed_version": "2.0.0"
+            },
+            {
+              "cve_id": "CVE-2024-11003",
+              "purl": "pkg:pypi/tenacity@8.1.0",
+              "cvss_score": 3.1,
+              "severity": "Low",
+              "affected_version_range": "<8.2.0",
+              "fixed_version": "8.2.0"
+            }
+          ],
+          "updated_records": [
+            {
+              "cve_id": "CVE-2023-34540",
+              "update": "fixed_version updated from 0.0.247 to 0.0.300"
+            }
+          ]
+        }
+      },
+      "input": {
+        "cli_invocation": "sbom-tool sync --source nvd --db ./nvd_cache.db",
+        "cli_entity_ref": "cli_002",
+        "trigger": "on_demand"
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "sync_log_entry": {
+          "synced_at_advances": true,
+          "records_added": 3,
+          "records_updated": 1,
+          "source": "on_demand"
+        },
+        "new_record_count": 11,
+        "last_synced_at_updated": true,
+        "cve_2023_34540_fixed_version": "0.0.300"
+      },
+      "assertions": [
+        "sync_log table has a new row with source='on_demand'",
+        "new row has records_added=3, records_updated=1",
+        "vulnerabilities table row count increased from 8 to 11",
+        "CVE-2023-34540 fixed_version value is '0.0.300'",
+        "last_synced value in all new rows is current timestamp",
+        "exit code is 0"
+      ]
+    },
+
+    {
+      "id": "scenario_005",
+      "name": "Transitive dependency carries CVE — not the direct dep — tests transitive detection path",
+      "category": "edge_case",
+      "description": "Validates that when a transitive dependency (joblib==0.14.1, pulled in by scikit-learn==0.24.1) carries a HIGH CVE, the tool correctly surfaces it against the transitive dep's PURL rather than its parent. scikit-learn itself has no CVE. This tests the transitive dependency resolution and PURL-based matching path of the vulnerability engine.",
+      "bdd_focus": ["Dependency completeness: direct + transitive captured", "PURL/CPE identifier presence", "Transitive CVE detection"],
+      "preconditions": {
+        "repository": "handson-ml",
+        "direct_dep": {
+          "name": "scikit-learn",
+          "version": "0.24.1",
+          "purl": "pkg:pypi/scikit-learn@0.24.1",
+          "has_cve": false
+        },
+        "transitive_dep": {
+          "name": "joblib",
+          "version": "0.14.1",
+          "purl": "pkg:pypi/joblib@0.14.1",
+          "pulled_in_by": "scikit-learn==0.24.1",
+          "has_cve": true,
+          "cve_id": "CVE-2022-21797"
+        }
+      },
+      "input": {
+        "scan_id": "scan_002",
+        "cli_invocation": "sbom-tool scan /repos/handson-ml --format spdx --output ./handson-ml-sbom.spdx.json",
+        "dep_graph_fragment": {
+          "scikit-learn@0.24.1": ["joblib@0.14.1", "threadpoolctl@2.1.0", "numpy@*"]
+        }
+      },
+      "expected_output": {
+        "vulnerability_attached_to": "pkg:pypi/joblib@0.14.1",
+        "vulnerability_id": "CVE-2022-21797",
+        "severity": "High",
+        "cvss_score": 9.8,
+        "scikit_learn_vulnerability_count": 0,
+        "joblib_vulnerability_count": 1,
+        "transitive_dep_in_sbom": true,
+        "transitive_dep_purl_present": true
+      },
+      "assertions": [
+        "joblib@0.14.1 appears in SBOM packages/components with purl='pkg:pypi/joblib@0.14.1'",
+        "CVE-2022-21797 is mapped to joblib@0.14.1, NOT to scikit-learn@0.24.1",
+        "scikit-learn@0.24.1 has zero vulnerability entries",
+        "SBOM comment or annotation on joblib entry notes 'TRANSITIVE — via scikit-learn'",
+        "remediation for CVE-2022-21797 recommends upgrading joblib to >= 1.2.0"
+      ]
+    },
+
+    {
+      "id": "scenario_006",
+      "name": "VEX-filtered vulnerability excluded from output",
+      "category": "edge_case",
+      "description": "A VEX statement declares CVE-2018-19787 (lxml XSS) as 'not_affected' for the TaskMatrix context because the codebase does not call the HTML cleaner module. After OpenVEX filtering, CVE-2018-19787 must NOT appear as an unfiltered vulnerability in the output — it should be suppressed or flagged as vex_filtered=true.",
+      "bdd_focus": ["VEX filtering: suppressed vulnerabilities not included in output (or flagged)"],
+      "preconditions": {
+        "vex_statement": {
+          "cve_id": "CVE-2018-19787",
+          "package_purl": "pkg:pypi/lxml@4.6.3",
+          "status": "not_affected",
+          "justification": "vulnerable_code_not_in_execute_path",
+          "note": "TaskMatrix does not invoke lxml.html.clean module"
+        },
+        "vex_filter_path": "/config/vex-filter.json"
+      },
+      "input": {
+        "scan_id": "scan_001",
+        "cli_invocation": "sbom-tool scan /repos/TaskMatrix --format cyclonedx --output ./TaskMatrix-sbom-vex.cdx.json",
+        "adapter_entity_ref": "adapter_001"
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "cve_2018_19787_in_unfiltered_list": false,
+        "cve_2018_19787_vex_status": "not_affected",
+        "active_vulnerability_count": 2,
+        "vex_filtered_vulnerability_count": 1,
+        "active_vulnerabilities": ["CVE-2023-34540", "CVE-2023-32681"]
+      },
+      "assertions": [
+        "CVE-2018-19787 does not appear in the vulnerabilities array of CycloneDX output",
+        "If the tool includes a suppressed section, CVE-2018-19787 appears there with vex_status='not_affected'",
+        "Active vulnerability count is 2 (CVE-2023-34540, CVE-2023-32681)",
+        "Output is still schema-valid CycloneDX JSON"
+      ]
+    },
+
+    {
+      "id": "scenario_007",
+      "name": "NVD cache stale — scan warns but does not silently produce zero vulnerabilities",
+      "category": "error_path",
+      "description": "The NVD cache last_synced timestamp is more than 7 days in the past. The tool should detect the stale cache condition and either emit a warning to stderr, use exit code 3, or annotate the SBOM metadata. It must NOT silently produce a zero-vulnerability SBOM for a project known to have CVEs.",
+      "bdd_focus": ["NVD cache stale or empty at scan time: system should warn or error, not silently produce zero vulnerabilities"],
+      "preconditions": {
+        "nvd_cache_last_synced": "2026-04-01T06:00:00Z",
+        "cache_age_days": 8,
+        "staleness_threshold_days": 7
+      },
+      "input": {
+        "scan_id": "scan_001",
+        "cli_invocation": "sbom-tool scan /repos/TaskMatrix --format cyclonedx --output ./TaskMatrix-sbom.cdx.json",
+        "repository": "TaskMatrix"
+      },
+      "expected_output": {
+        "stale_cache_detected": true,
+        "behavior_options": {
+          "option_a": {"exit_code": 3, "stderr_message": "WARNING: NVD cache is 8 days old (threshold: 7 days). Run 'sbom-tool sync' to refresh."},
+          "option_b": {"exit_code": 0, "sbom_metadata_field": "nvd_cache_staleness_warning", "sbom_metadata_value": "Cache is 8 days old — vulnerability results may be incomplete"}
+        },
+        "zero_vuln_sbom_without_warning": false
+      },
+      "assertions": [
+        "Tool detects cache age > staleness threshold",
+        "Either exit code is non-zero OR SBOM metadata contains staleness warning",
+        "Tool does NOT silently produce a zero-vulnerability SBOM for TaskMatrix",
+        "Stale cache message references 'sbom-tool sync' command"
+      ]
+    },
+
+    {
+      "id": "scenario_008",
+      "name": "Dependency deduplication — Trivy and Syft both report same package — output contains it exactly once",
+      "category": "edge_case",
+      "description": "When running in dual-tool mode (Syft + Trivy cross-validation), both engines report numpy@1.22.0 in the handson-ml scan. The OSSToolAdapter deduplication layer must merge by PURL and ensure numpy@1.22.0 appears exactly once in the SBOM. Tests the dedup_key=purl logic in the adapter.",
+      "bdd_focus": ["Dependency deduplication: Trivy and Syft report same dependency — output contains it exactly once"],
+      "preconditions": {
+        "syft_output_fragment": {
+          "package": "numpy", "version": "1.22.0", "purl": "pkg:pypi/numpy@1.22.0"
+        },
+        "trivy_output_fragment": {
+          "package": "numpy", "version": "1.22.0", "purl": "pkg:pypi/numpy@1.22.0"
+        }
+      },
+      "input": {
+        "scan_id": "scan_002_dedup_test",
+        "adapter_mode": "dual_tool",
+        "dedup_key": "purl",
+        "raw_dep_list": [
+          {"tool": "Syft", "name": "numpy", "version": "1.22.0", "purl": "pkg:pypi/numpy@1.22.0"},
+          {"tool": "Trivy", "name": "numpy", "version": "1.22.0", "purl": "pkg:pypi/numpy@1.22.0"},
+          {"tool": "Syft", "name": "scipy", "version": "1.6.0", "purl": "pkg:pypi/scipy@1.6.0"},
+          {"tool": "Trivy", "name": "scipy", "version": "1.6.0", "purl": "pkg:pypi/scipy@1.6.0"}
+        ]
+      },
+      "expected_output": {
+        "deduplicated_dep_count": 2,
+        "numpy_occurrence_count": 1,
+        "scipy_occurrence_count": 1,
+        "duplicate_entries_removed": 2
+      },
+      "assertions": [
+        "numpy@1.22.0 appears exactly once in the output component list",
+        "scipy@1.6.0 appears exactly once in the output component list",
+        "No two entries share the same purl value",
+        "Total unique deps after dedup equals raw_dep_list unique PURLs"
+      ]
+    },
+
+    {
+      "id": "scenario_009",
+      "name": "CVSS boundary condition — score at exact boundary between severity bands",
+      "category": "edge_case",
+      "description": "Tests correct CVSS severity classification at the exact band boundaries: score=7.0 is High (not Medium), score=6.9 is Medium (not High), score=4.0 is Medium (not Low), score=3.9 is Low (not Medium). Verifies the CVSS v3.1 banding rules: High>=7.0, Medium 4.0–6.9, Low<4.0.",
+      "bdd_focus": ["CVSS threshold boundary: score at exact boundary between severity bands"],
+      "input": {
+        "boundary_test_cases": [
+          {"cvss_score": 10.0, "expected_severity": "High", "label": "maximum score"},
+          {"cvss_score": 9.8,  "expected_severity": "High", "label": "typical critical"},
+          {"cvss_score": 7.0,  "expected_severity": "High", "label": "High lower boundary (inclusive)"},
+          {"cvss_score": 6.9,  "expected_severity": "Medium", "label": "Medium upper boundary (inclusive)"},
+          {"cvss_score": 5.5,  "expected_severity": "Medium", "label": "typical medium"},
+          {"cvss_score": 4.0,  "expected_severity": "Medium", "label": "Medium lower boundary (inclusive)"},
+          {"cvss_score": 3.9,  "expected_severity": "Low", "label": "Low upper boundary (inclusive)"},
+          {"cvss_score": 3.3,  "expected_severity": "Low", "label": "typical low"},
+          {"cvss_score": 0.1,  "expected_severity": "Low", "label": "near-zero low"},
+          {"cvss_score": null, "expected_severity": "Unknown", "label": "missing CVSS score"}
+        ]
+      },
+      "expected_output": {
+        "all_boundary_cases_correct": true,
+        "classification_rules": {
+          "High": "cvss_score >= 7.0",
+          "Medium": "cvss_score >= 4.0 AND cvss_score < 7.0",
+          "Low": "cvss_score > 0.0 AND cvss_score < 4.0",
+          "Unknown": "cvss_score IS NULL"
+        }
+      },
+      "assertions": [
+        "score=7.0 classified as High",
+        "score=6.9 classified as Medium",
+        "score=4.0 classified as Medium",
+        "score=3.9 classified as Low",
+        "score=null classified as Unknown (not as Low or any severity band)",
+        "No off-by-one errors at band boundaries"
+      ]
+    },
+
+    {
+      "id": "scenario_010",
+      "name": "Unsupported repository language — graceful error with non-zero exit code",
+      "category": "error_path",
+      "description": "User attempts to scan a Go repository (not Python or JS/TS). The tool should detect the unsupported language during dependency discovery, emit an informative error message to stderr, and exit with a non-zero code. It must NOT produce a partial or empty SBOM without an explicit error signal.",
+      "bdd_focus": ["CI/CD gate: non-zero exit code on scan error", "Unsupported language repository scanned: graceful error, not silent empty output"],
+      "preconditions": {
+        "repository_path": "/repos/some-go-project",
+        "language_detected": "Go",
+        "supported_languages": ["Python", "JS/TS"]
+      },
+      "input": {
+        "cli_invocation": "sbom-tool scan /repos/some-go-project --format cyclonedx --output ./go-sbom.cdx.json",
+        "repository_language": "Go"
+      },
+      "expected_output": {
+        "exit_code": 1,
+        "stderr_contains": "Unsupported ecosystem",
+        "sbom_file_created": false,
+        "partial_sbom_created": false
+      },
+      "assertions": [
+        "Exit code is non-zero (1 or 2)",
+        "stderr contains message referencing unsupported language or ecosystem",
+        "stderr message references supported languages (Python, JS/TS or pypi/npm)",
+        "No SBOM output file is created at the specified output path",
+        "stdout does not contain any CycloneDX or SPDX JSON structure"
+      ]
+    }
+  ]
+}

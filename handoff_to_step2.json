@@ -1,0 +1,110 @@
+{
+  "step2_context": {
+    "requirements_file": "step1_requirements.json",
+    "session_id": "SBOM-20260409-sb01",
+    "domain": "Developer Tooling — Software Supply Chain Security",
+    "primary_function": "CLI-based Software Bill of Materials engine that scans a single codebase and produces machine-readable dependency and vulnerability inventory, CI/CD-ready",
+    "research_validated": false,
+    "research_citations": 0,
+    "architecture_type": "DETERMINISTIC_TOOL",
+    "no_ai": true,
+    "no_frontend": true,
+    "packaging": "Docker + CLI (Typer)",
+
+    "recommended_bdd_focus": [
+      "Happy path: scan Python repo and export CycloneDX JSON",
+      "Happy path: scan JS/TS repo and export SPDX JSON",
+      "Single repository constraint: reject invocation with multiple repos",
+      "Single environment constraint: scope scan to specified environment",
+      "Dependency completeness: direct + transitive captured with name, version, supplier",
+      "PURL/CPE identifier presence on each dependency",
+      "CVSS severity classification: High, Medium, Low assigned per vulnerability",
+      "Remediation enrichment: at least one of (recommendation, advisory link) per vulnerability",
+      "VEX filtering: suppressed vulnerabilities not included in output (or flagged)",
+      "No live NVD API call at scan time: all lookups from local cache only",
+      "NVD sync: daily schedule trigger populates local cache",
+      "NVD sync: on-demand refresh command populates local cache",
+      "Output format schema compliance: SPDX and CycloneDX JSON pass spec validation",
+      "CI/CD gate: non-zero exit code on scan error"
+    ],
+
+    "risk_scenarios": [
+      "NVD cache stale or empty at scan time: system should warn or error, not silently produce zero vulnerabilities",
+      "Unsupported language repository scanned: graceful error, not silent empty output",
+      "Dependency deduplication: Trivy and Syft report same dependency — output contains it exactly once",
+      "VEX filtering: VEX-suppressed vulnerability does not appear as unfiltered in output",
+      "CVSS threshold boundary: score at exact boundary between severity bands"
+    ],
+
+    "success_criteria": [
+      "All direct and transitive dependencies captured with name, version, supplier",
+      "SPDX and CycloneDX JSON export passes format schema validation",
+      "Every vulnerability has CVSS severity and at least one enrichment field",
+      "Zero live NVD API calls during scan (verified by network isolation test)",
+      "CLI exits with success code on clean scan, non-zero on error"
+    ],
+
+    "document_driven_context": {
+      "extraction_ledger_file": "step1_extraction_ledger.json",
+      "gap_report_file": "step1_gap_report.json",
+      "source_doc_manifest_file": "step1_source_doc_manifest.json",
+      "extraction_summary": {
+        "entities_extracted": 8,
+        "relationships_extracted": 6,
+        "rules_extracted": 7,
+        "workflows_extracted": 2,
+        "roles_extracted": 0,
+        "screens_extracted": 0,
+        "ambiguities_found": 3,
+        "documents_processed": 1
+      },
+      "gap_report_summary": {
+        "overall_accuracy_pct": 92.9,
+        "critical_issues_resolved": 0,
+        "accepted_gaps": 0,
+        "out_of_scope_items": 7,
+        "unresolved_clarifications": 2
+      },
+      "schema_extensions_activated": [
+        "domain_model",
+        "engines_and_rules",
+        "workflow_definitions",
+        "business_rule_catalog",
+        "module_inventory",
+        "oss_reuse_inventory"
+      ],
+      "bdd_focus_guidance": {
+        "from_engines": "CVSS Severity Classifier — test each severity band (High/Medium/Low), boundary conditions (note: thresholds require clarification), and missing score handling",
+        "from_workflows": "Scan Workflow — test happy path, error path (invalid repo), and cache-miss path; NVD Sync Workflow — test daily and on-demand triggers",
+        "from_rules": "All 7 business rules have direct BDD scenarios; priority ordering matters for Single Repository + Single Environment constraints",
+        "from_ambiguities": "2 open clarifications remain: CVSS numeric thresholds (CQ-1), remediation OR logic (CQ-2) — BDD scenarios should use placeholder thresholds pending clarification. CLI framework (CQ-3) is resolved: use Typer."
+      },
+      "anti_fabrication_report": {
+        "fabrication_warnings_count": 0,
+        "generic_substitutions_found": 0,
+        "all_values_attributed": true,
+        "confidence_distribution": {
+          "verbatim": 58,
+          "paraphrased": 4,
+          "inferred": 22,
+          "requires_clarification": 2
+        }
+      }
+    },
+
+    "open_clarifications_for_step2": [
+      {
+        "id": "CQ-1",
+        "topic": "CVSS numeric thresholds",
+        "question": "Are standard CVSS v3.1 bands intended? Does the 3-band scheme collapse Critical (>=9.0) into High?",
+        "bdd_guidance": "Write scenarios using placeholder labels (High/Medium/Low) and note threshold TBD in scenario comments"
+      },
+      {
+        "id": "CQ-2",
+        "topic": "Remediation field requirement",
+        "question": "Is at least one of (recommendation, advisory_link) mandatory, or both are independently optional?",
+        "bdd_guidance": "Write scenarios for both presence and absence; flag this as a gap in scenario metadata"
+      }
+    ]
+  }
+}

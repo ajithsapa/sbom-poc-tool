@@ -1,0 +1,132 @@
+{
+  "session_id": "SBOM-20260409-sb01",
+  "step": 8,
+  "phase": "TDD Red Phase 2 — Orchestration",
+  "generated_file": "step8_tdd_red_phase_orchestration_tests.py",
+  "total_tests_collected": 126,
+  "tests_failing_red_phase": 122,
+  "tests_passing_contract_checks": 4,
+  "passing_tests_explanation": "4 enum shape tests verify the Step 7 data contracts (ScanWorkflowState, NVDSyncWorkflowState) which are already defined — they correctly pass as contract assertions. All 122 orchestration implementation tests fail with NotImplementedError.",
+
+  "test_classes": [
+    {
+      "class": "TestScanOrchestratorInit",
+      "count": 6,
+      "focus": "ScanOrchestrator constructor, dependency injection, attribute storage"
+    },
+    {
+      "class": "TestScanOrchestratorCallOrder",
+      "count": 12,
+      "focus": "Mandatory call ordering: validate->normalise->deduplicate->map->vex->enrich->serialize"
+    },
+    {
+      "class": "TestScanOrchestratorStaleness",
+      "count": 7,
+      "focus": "NVD cache staleness check, warning injection, non-abort on stale"
+    },
+    {
+      "class": "TestScanOrchestratorFormats",
+      "count": 6,
+      "focus": "Format routing: cyclonedx vs spdx serialiser selection"
+    },
+    {
+      "class": "TestScanOrchestratorErrorPaths",
+      "count": 8,
+      "focus": "Validation abort, multi-repo rejection, error propagation, zero network calls"
+    },
+    {
+      "class": "TestScanOrchestratorResultShape",
+      "count": 8,
+      "focus": "ScanResult data contract: all required fields, workflow_states_visited"
+    },
+    {
+      "class": "TestNVDSyncOrchestratorDelegation",
+      "count": 8,
+      "focus": "NVDSyncOrchestrator delegation to NVDCacheManager.sync(), no re-implementation"
+    },
+    {
+      "class": "TestNVDSyncOrchestratorResult",
+      "count": 7,
+      "focus": "SyncResult data contract: counts, sync_log, synced_at, source_path"
+    },
+    {
+      "class": "TestNVDSyncOrchestratorErrors",
+      "count": 6,
+      "focus": "NVDSyncError propagation, no swallowing, sync_log not written on error"
+    },
+    {
+      "class": "TestCLIOrchestratorScanCommand",
+      "count": 18,
+      "focus": "CLI scan: exit codes, stdout/stderr routing, format flags, stale warning"
+    },
+    {
+      "class": "TestCLIOrchestratorSyncCommand",
+      "count": 10,
+      "focus": "CLI sync: exit codes, counts in stdout, NVDSyncError to stderr"
+    },
+    {
+      "class": "TestCLIOrchestratorOutputFlag",
+      "count": 7,
+      "focus": "CLI --output flag: SBOM to file vs stdout, write error handling"
+    },
+    {
+      "class": "TestScanWorkflowStateTransitions",
+      "count": 14,
+      "focus": "WorkflowStateMachine: valid transitions, skip guards, revert guards"
+    },
+    {
+      "class": "TestScanWorkflowStateMachine",
+      "count": 10,
+      "focus": "State machine edge cases, stale flag timing, NVD sync workflow, enum shapes"
+    }
+  ],
+
+  "orchestration_components_under_test": [
+    "ScanOrchestrator",
+    "NVDSyncOrchestrator",
+    "CLIOrchestrator",
+    "WorkflowStateMachine (stub in test file)"
+  ],
+
+  "business_components_mocked": [
+    "ScanJobValidator",
+    "OSSToolAdapter",
+    "VulnerabilityMapper",
+    "VEXFilter",
+    "RemediationEnricher",
+    "NVDCacheManager",
+    "CycloneDXSerializer",
+    "SPDXSerializer"
+  ],
+
+  "step7_acceptance_criteria_covered": {
+    "AC-1_cyclonedx_pipeline": "TestScanOrchestratorFormats, TestScanOrchestratorResultShape",
+    "AC-2_spdx_pipeline": "TestScanOrchestratorFormats",
+    "AC-3_stale_cache_warning": "TestScanOrchestratorStaleness, TestCLIOrchestratorScanCommand",
+    "AC-4_vex_before_enrichment": "TestScanOrchestratorCallOrder.test_vex_filter_called_before_enricher",
+    "AC-5_dedup_before_mapping": "TestScanOrchestratorCallOrder.test_deduplicate_called_before_map_vulnerabilities",
+    "AC-6_nvd_sync": "TestNVDSyncOrchestratorDelegation, TestNVDSyncOrchestratorErrors",
+    "AC-7_cli_scan_valid": "TestCLIOrchestratorScanCommand.test_valid_scan_returns_exit_code_zero",
+    "AC-8_cli_scan_invalid": "TestCLIOrchestratorScanCommand.test_invalid_repo_returns_non_zero_exit_code",
+    "AC-9_cli_sync_valid": "TestCLIOrchestratorSyncCommand",
+    "AC-10_workflow_states": "TestScanWorkflowStateTransitions, TestScanWorkflowStateMachine",
+    "AC-11_scan_result_shape": "TestScanOrchestratorResultShape",
+    "AC-12_zero_network_calls": "TestScanOrchestratorErrorPaths.test_no_socket_connect_during_scan"
+  },
+
+  "critical_ordering_constraints_enforced": [
+    "validate() called before normalise() — test_validator_called_before_adapter_normalise",
+    "normalise() called before deduplicate() — test_deduplicate_called_after_normalise",
+    "deduplicate() called before map_vulnerabilities() — test_deduplicate_called_before_map_vulnerabilities",
+    "is_stale() called before map_vulnerabilities() — test_nvd_staleness_checked_before_vulnerability_mapping",
+    "VEXFilter.apply() called before enrich() — test_vex_filter_called_before_enricher",
+    "enrich() called only for active vulns — test_enrich_called_only_for_active_vulns_not_suppressed"
+  ],
+
+  "ddm_rules_tested": [
+    "Single Repository Per Scan — test_multi_repo_path_raises_on_validation",
+    "Single Runtime Environment Per Run — test_unknown_env_raises_on_validation",
+    "No Live NVD API Call at Scan Time — test_no_socket_connect_during_scan",
+    "NVD Cache Staleness Warning — TestScanOrchestratorStaleness (7 tests)"
+  ]
+}
