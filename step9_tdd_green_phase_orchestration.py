@@ -382,9 +382,9 @@ class NVDSyncOrchestrator:
     Propagates NVDSyncError unchanged. Records sync_log on success.
     """
 
-    def __init__(self, cache_manager: Optional[NVDCacheManager] = None):
+    def __init__(self, cache_manager: Optional[NVDCacheManager] = None, db_path: str = ":memory:"):
         self.cache_manager = (
-            cache_manager if cache_manager is not None else NVDCacheManager()
+            cache_manager if cache_manager is not None else NVDCacheManager(db_path=db_path)
         )
         self.last_sync_log: Optional[Dict] = None
 
@@ -443,6 +443,7 @@ class CLIOrchestrator:
         self,
         scan_orchestrator: Optional[ScanOrchestrator] = None,
         sync_orchestrator: Optional[NVDSyncOrchestrator] = None,
+        db_path: str = ":memory:",
     ):
         self.scan_orchestrator = (
             scan_orchestrator
@@ -452,7 +453,7 @@ class CLIOrchestrator:
         self.sync_orchestrator = (
             sync_orchestrator
             if sync_orchestrator is not None
-            else NVDSyncOrchestrator()
+            else NVDSyncOrchestrator(db_path=db_path)
         )
 
     def invoke_scan(

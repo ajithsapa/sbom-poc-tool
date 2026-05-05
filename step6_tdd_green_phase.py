@@ -459,13 +459,14 @@ class OSSToolAdapter:
             supplier = (
                 comp.get("metadata", {}).get("Author")
                 or comp.get("metadata", {}).get("author")
-                or "Unknown"
+                or "PyPI"
             )
             records.append({
                 "name": comp.get("name", ""),
                 "exact_version": comp.get("version", ""),
                 "purl": comp.get("purl", ""),
                 "supplier": supplier,
+                "cpe": comp.get("cpe"),
             })
         return records
 
@@ -618,9 +619,8 @@ class NVDCacheManager:
 
     _STALE_THRESHOLD_DAYS = 7
 
-    def __init__(self):
-        # In-memory SQLite — each instance is isolated (suitable for testing)
-        self._conn = sqlite3.connect(":memory:")
+    def __init__(self, db_path: str = ":memory:"):
+        self._conn = sqlite3.connect(db_path)
         self._setup_schema()
         self._last_synced_at: Optional[datetime] = None
         self.last_sync_log: Optional[dict] = None
@@ -628,11 +628,25 @@ class NVDCacheManager:
     def _setup_schema(self):
         cur = self._conn.cursor()
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS nvd_cache (
-                cve_id TEXT NOT NULL,
-                purl   TEXT NOT NULL,
-                cvss_score REAL,
-                PRIMARY KEY (cve_id, purl)
+            CREATE TABLE IF NOT EXISTS vulnerabilities (
+                cve_id                 TEXT PRIMARY KEY NOT NULL,
+                purl                   TEXT,
+                cpe                    TEXT,
+                cvss_score             REAL NOT NULL,
+                severity               TEXT NOT NULL,
+                affected_version_range TEXT NOT NULL DEFAULT '',
+                fixed_version          TEXT,
+                advisory_url           TEXT,
+                last_synced            TEXT NOT NULL DEFAULT ''
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sync_log (
+                sync_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                synced_at       TEXT NOT NULL,
+                records_added   INTEGER DEFAULT 0,
+                records_updated INTEGER DEFAULT 0,
+                source          TEXT NOT NULL DEFAULT 'on_demand'
             )
         """)
         self._conn.commit()
@@ -677,7 +691,10 @@ class NVDCacheManager:
         """
         Upsert CVE records from a JSON feed file at source_path.
 
-        Raises NVDSyncError if source_path does not exist.
+        Feed format: {"vulnerabilities": [{cve_id, purl, cpe, cvss_score,
+                        severity, affected_version_range, fixed_version, advisory_url}]}
+
+        Raises NVDSyncError if source_path does not exist or JSON is invalid.
         Returns NVDSyncResult with records_added and records_updated counts.
         """
         import os
@@ -692,43 +709,54 @@ class NVDCacheManager:
             except json.JSONDecodeError as exc:
                 raise NVDSyncError(f"Invalid JSON in feed: {exc}") from exc
 
-        items = feed.get("CVE_Items", [])
+        items = feed.get("vulnerabilities", [])
         records_added = 0
         records_updated = 0
 
         cur = self._conn.cursor()
         seen: set = set()
+        synced_at = datetime.now(timezone.utc)
 
         for item in items:
             cve_id = item.get("cve_id", "")
-            purl = item.get("purl", "")
-            if not cve_id and not purl:
+            if not cve_id:
                 continue
-            key = (cve_id, purl)
-            if key in seen:
-                # Duplicate within same feed — counts as update
+            if cve_id in seen:
                 records_updated += 1
                 continue
-            seen.add(key)
+            seen.add(cve_id)
 
-            # Check existence
-            cur.execute(
-                "SELECT 1 FROM nvd_cache WHERE cve_id = ? AND purl = ?",
-                (cve_id, purl),
-            )
+            cur.execute("SELECT 1 FROM vulnerabilities WHERE cve_id = ?", (cve_id,))
             exists = cur.fetchone() is not None
             cur.execute(
-                "INSERT OR REPLACE INTO nvd_cache (cve_id, purl, cvss_score) VALUES (?, ?, ?)",
-                (cve_id, purl, item.get("cvss_score")),
+                """INSERT OR REPLACE INTO vulnerabilities
+                   (cve_id, purl, cpe, cvss_score, severity,
+                    affected_version_range, fixed_version, advisory_url, last_synced)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    cve_id,
+                    item.get("purl", ""),
+                    item.get("cpe", ""),
+                    item.get("cvss_score", 0.0),
+                    item.get("severity", "Unknown"),
+                    item.get("affected_version_range", ""),
+                    item.get("fixed_version", ""),
+                    item.get("advisory_url", ""),
+                    synced_at.isoformat(),
+                ),
             )
             if exists:
                 records_updated += 1
             else:
                 records_added += 1
 
+        cur.execute(
+            """INSERT INTO sync_log (synced_at, records_added, records_updated, source)
+               VALUES (?, ?, ?, 'on_demand')""",
+            (synced_at.isoformat(), records_added, records_updated),
+        )
         self._conn.commit()
 
-        synced_at = datetime.now(timezone.utc)
         self._last_synced_at = synced_at
         self.last_sync_log = {
             "synced_at": synced_at.isoformat(),
@@ -767,11 +795,12 @@ class CycloneDXSerializer:
                 "name": dep.get("name", ""),
                 "version": dep.get("version", dep.get("exact_version", "")),
                 "purl": dep.get("purl", ""),
+                "supplier": {"name": dep.get("supplier", "PyPI")},
             })
 
         vulnerabilities = []
         for vuln in scan_result.get("vulnerabilities", []):
-            vulnerabilities.append({
+            vuln_entry = {
                 "id": vuln.get("cve_id", ""),
                 "ratings": [
                     {
@@ -783,7 +812,12 @@ class CycloneDXSerializer:
                 "affects": [
                     {"ref": vuln.get("purl", "")}
                 ],
-            })
+            }
+            if vuln.get("advisory_url"):
+                vuln_entry["advisories"] = [{"url": vuln["advisory_url"]}]
+            if vuln.get("fixed_version"):
+                vuln_entry["recommendation"] = f"Upgrade to {vuln['fixed_version']}"
+            vulnerabilities.append(vuln_entry)
 
         return {
             "bomFormat": "CycloneDX",
@@ -822,11 +856,12 @@ class SPDXSerializer:
         created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         doc_namespace = f"https://sbom-tool.example.com/spdx/{scan_id}"
 
-        # Build set of vulnerable PURLs for quick lookup
-        vuln_purls: set = set()
-        for dep in scan_result.get("dependencies", []):
-            if dep.get("vulnerable") or dep.get("cve_ids"):
-                vuln_purls.add(dep.get("purl", ""))
+        # Build map of vulnerable PURL → CPE from the vulnerabilities list
+        vuln_purl_to_cpe: dict = {}
+        for vuln in scan_result.get("vulnerabilities", []):
+            purl = vuln.get("purl", "")
+            if purl and purl not in vuln_purl_to_cpe:
+                vuln_purl_to_cpe[purl] = vuln.get("cpe", "")
 
         packages = []
         for dep in scan_result.get("dependencies", []):
@@ -844,13 +879,14 @@ class SPDXSerializer:
             ]
 
             # Add SECURITY ref for vulnerable packages
-            is_vulnerable = dep.get("vulnerable", False) or bool(dep.get("cve_ids"))
-            if is_vulnerable and dep_cpe:
-                external_refs.append({
-                    "referenceCategory": "SECURITY",
-                    "referenceType": "cpe23Type",
-                    "referenceLocator": dep_cpe,
-                })
+            if dep_purl in vuln_purl_to_cpe:
+                cpe_locator = dep_cpe or vuln_purl_to_cpe.get(dep_purl, "")
+                if cpe_locator:
+                    external_refs.append({
+                        "referenceCategory": "SECURITY",
+                        "referenceType": "cpe23Type",
+                        "referenceLocator": cpe_locator,
+                    })
 
             packages.append({
                 "SPDXID": spdx_id,
@@ -1553,19 +1589,19 @@ class TestNVDCacheManager:
 
     def test_sync_valid_path_returns_sync_result(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         result = cache_mgr.sync(str(source))
         assert result is not None
 
     def test_sync_valid_path_result_has_records_added(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         result = cache_mgr.sync(str(source))
         assert hasattr(result, "records_added") or "records_added" in result
 
     def test_sync_valid_path_result_has_records_updated(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         result = cache_mgr.sync(str(source))
         assert hasattr(result, "records_updated") or "records_updated" in result
 
@@ -1575,20 +1611,20 @@ class TestNVDCacheManager:
 
     def test_sync_log_entry_created_after_sync(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         cache_mgr.sync(str(source))
         assert cache_mgr.last_sync_log is not None
 
     def test_sync_log_contains_timestamp(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         cache_mgr.sync(str(source))
         log = cache_mgr.last_sync_log
         assert "synced_at" in log or "timestamp" in log
 
     def test_sync_log_contains_source_path(self, cache_mgr, tmp_path):
         source = tmp_path / "nvd_feed.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         path_str = str(source)
         cache_mgr.sync(path_str)
         log = cache_mgr.last_sync_log
@@ -1599,9 +1635,10 @@ class TestNVDCacheManager:
             "cve_id": "CVE-2023-34540",
             "purl": "pkg:pypi/langchain@0.0.101",
             "cvss_score": 9.8,
+            "severity": "High",
         }
         import json
-        feed = json.dumps({"CVE_Items": [record, record]})
+        feed = json.dumps({"vulnerabilities": [record, record]})
         source = tmp_path / "nvd_dup.json"
         source.write_text(feed)
         result = cache_mgr.sync(str(source))
@@ -1612,7 +1649,7 @@ class TestNVDCacheManager:
 
     def test_sync_does_not_raise_on_empty_feed(self, cache_mgr, tmp_path):
         source = tmp_path / "empty.json"
-        source.write_text('{"CVE_Items": []}')
+        source.write_text('{"vulnerabilities": []}')
         cache_mgr.sync(str(source))
 
     def test_is_stale_with_naive_datetime_raises_or_handles(self, cache_mgr):

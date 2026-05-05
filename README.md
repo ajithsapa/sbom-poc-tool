@@ -87,14 +87,16 @@ python cli.py scan --repo /path/to/TaskMatrix
   "bomFormat": "CycloneDX",
   "specVersion": "1.4",
   "components": [
-    { "name": "langchain", "version": "0.0.101", "purl": "pkg:pypi/langchain@0.0.101" },
-    { "name": "torch",     "version": "1.13.1",  "purl": "pkg:pypi/torch@1.13.1" }
+    { "type": "library", "name": "langchain", "version": "0.0.101", "purl": "pkg:pypi/langchain@0.0.101", "supplier": { "name": "PyPI" } },
+    { "type": "library", "name": "torch",     "version": "1.13.1",  "purl": "pkg:pypi/torch@1.13.1",     "supplier": { "name": "PyPI" } }
   ],
   "vulnerabilities": [
     {
       "id": "CVE-2023-34540",
       "ratings": [{ "score": 9.8, "severity": "high", "method": "CVSSv31" }],
-      "affects": [{ "ref": "pkg:pypi/langchain@0.0.101" }]
+      "affects": [{ "ref": "pkg:pypi/langchain@0.0.101" }],
+      "advisories": [{ "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540" }],
+      "recommendation": "Upgrade to 0.0.341"
     }
   ]
 }
