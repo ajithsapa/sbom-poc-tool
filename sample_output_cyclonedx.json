@@ -1,0 +1,185 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:bd8aaf29-3f1f-4895-9007-f75e6af1efc7",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-04-10T12:48:35Z",
+    "tools": [
+      {
+        "vendor": "SBOM POC",
+        "name": "sbom-tool",
+        "version": "1.0.0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "joblib",
+      "version": "0.14.1",
+      "purl": "pkg:pypi/joblib@0.14.1",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "1.22.0",
+      "purl": "pkg:pypi/numpy@1.22.0",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "scipy",
+      "version": "1.6.0",
+      "purl": "pkg:pypi/scipy@1.6.0",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "tensorflow",
+      "version": "1.15.5",
+      "purl": "pkg:pypi/tensorflow@1.15.5",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "Pillow",
+      "version": "8.0.1",
+      "purl": "pkg:pypi/Pillow@8.0.1",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "requests",
+      "version": "2.25.1",
+      "purl": "pkg:pypi/requests@2.25.1",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "matplotlib",
+      "version": "3.3.4",
+      "purl": "pkg:pypi/matplotlib@3.3.4",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "pandas",
+      "version": "1.2.4",
+      "purl": "pkg:pypi/pandas@1.2.4",
+      "supplier": {
+        "name": "PyPI"
+      }
+    },
+    {
+      "type": "library",
+      "name": "scikit-learn",
+      "version": "0.24.2",
+      "purl": "pkg:pypi/scikit-learn@0.24.2",
+      "supplier": {
+        "name": "PyPI"
+      }
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "CVE-2022-21797",
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "high",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:pypi/joblib@0.14.1"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797"
+        }
+      ],
+      "recommendation": "Upgrade to 1.2.0"
+    },
+    {
+      "id": "CVE-2021-33430",
+      "ratings": [
+        {
+          "score": 5.5,
+          "severity": "medium",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:pypi/numpy@1.22.0"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-33430"
+        }
+      ],
+      "recommendation": "Upgrade to 1.22.2"
+    },
+    {
+      "id": "CVE-2023-25399",
+      "ratings": [
+        {
+          "score": 5.5,
+          "severity": "medium",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:pypi/scipy@1.6.0"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2023-25399"
+        }
+      ],
+      "recommendation": "Upgrade to 1.11.0"
+    },
+    {
+      "id": "CVE-2022-29216",
+      "ratings": [
+        {
+          "score": 8.8,
+          "severity": "high",
+          "method": "CVSSv31"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:pypi/tensorflow@1.15.5"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216"
+        }
+      ],
+      "recommendation": "Upgrade to 2.9.0"
+    }
+  ]
+}

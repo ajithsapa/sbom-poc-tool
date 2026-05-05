@@ -34,11 +34,15 @@ router = APIRouter()
     "/status",
     response_model=CacheStatusResponse,
     status_code=200,
-    summary="Get NVD cache staleness and record count",
+    summary="Inspect NVD cache freshness and record count (POC Req 7)",
     description=(
-        "Returns the current state of the local NVD SQLite cache: "
+        "Returns the current state of the local **NVD** "
+        "(National Vulnerability Database, NIST) cache: "
         "last sync timestamp, age in days, staleness flag (> 7 days = stale), "
-        "and total number of vulnerability records."
+        "and total **CVE** (Common Vulnerabilities and Exposures) record count. "
+        "Use this before triggering a scan to verify the vulnerability data "
+        "is current — a scan against a stale cache still completes but is "
+        "flagged in `warnings[]`."
     ),
     responses={
         500: {

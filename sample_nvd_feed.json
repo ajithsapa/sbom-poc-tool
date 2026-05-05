@@ -1,0 +1,84 @@
+{
+  "vulnerabilities": [
+    {
+      "cve_id": "CVE-2023-34540",
+      "purl": "pkg:pypi/langchain@0.0.101",
+      "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+      "cvss_score": 9.8,
+      "severity": "High",
+      "affected_version_range": ">=0.0.1,<0.0.247",
+      "fixed_version": "0.0.247",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-34540"
+    },
+    {
+      "cve_id": "CVE-2022-21797",
+      "purl": "pkg:pypi/joblib@0.14.1",
+      "cpe": "cpe:2.3:a:joblib:joblib:0.14.1:*:*:*:*:python:*:*",
+      "cvss_score": 9.8,
+      "severity": "High",
+      "affected_version_range": "<1.2.0",
+      "fixed_version": "1.2.0",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797"
+    },
+    {
+      "cve_id": "CVE-2021-33430",
+      "purl": "pkg:pypi/numpy@1.22.0",
+      "cpe": "cpe:2.3:a:numpy:numpy:1.22.0:*:*:*:*:python:*:*",
+      "cvss_score": 5.5,
+      "severity": "Medium",
+      "affected_version_range": ">=1.9.0,<1.22.2",
+      "fixed_version": "1.22.2",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2021-33430"
+    },
+    {
+      "cve_id": "CVE-2023-25399",
+      "purl": "pkg:pypi/scipy@1.6.0",
+      "cpe": "cpe:2.3:a:scipy:scipy:1.6.0:*:*:*:*:python:*:*",
+      "cvss_score": 5.5,
+      "severity": "Medium",
+      "affected_version_range": "<1.11.0",
+      "fixed_version": "1.11.0",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-25399"
+    },
+    {
+      "cve_id": "CVE-2023-32681",
+      "purl": "pkg:pypi/requests@2.27.1",
+      "cpe": "cpe:2.3:a:python-requests:requests:2.27.1:*:*:*:*:python:*:*",
+      "cvss_score": 6.1,
+      "severity": "Medium",
+      "affected_version_range": ">=2.3.0,<2.31.0",
+      "fixed_version": "2.31.0",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681"
+    },
+    {
+      "cve_id": "CVE-2018-19787",
+      "purl": "pkg:pypi/lxml@4.6.3",
+      "cpe": "cpe:2.3:a:lxml:lxml:4.6.3:*:*:*:*:python:*:*",
+      "cvss_score": 6.1,
+      "severity": "Medium",
+      "affected_version_range": "<4.7.1",
+      "fixed_version": "4.7.1",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2018-19787"
+    },
+    {
+      "cve_id": "CVE-2023-44271",
+      "purl": "pkg:pypi/Pillow@9.0.1",
+      "cpe": "cpe:2.3:a:python:pillow:9.0.1:*:*:*:*:python:*:*",
+      "cvss_score": 7.5,
+      "severity": "High",
+      "affected_version_range": "<10.0.0",
+      "fixed_version": "10.0.0",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-44271"
+    },
+    {
+      "cve_id": "CVE-2022-29216",
+      "purl": "pkg:pypi/tensorflow@1.15.5",
+      "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:python:*:*",
+      "cvss_score": 8.8,
+      "severity": "High",
+      "affected_version_range": "<2.9.0",
+      "fixed_version": "2.9.0",
+      "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216"
+    }
+  ]
+}

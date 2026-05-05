@@ -44,38 +44,33 @@ from step9_tdd_green_phase_orchestration import (  # noqa: E402
 
 def _make_nvd_cache_manager() -> NVDCacheManager:
     """
-    Construct an NVDCacheManager whose SQLite connection allows cross-thread
-    access (check_same_thread=False).
-
-    FastAPI route handlers run in worker threads while the TestClient (and
-    some production async setups) may create the singleton in a different
-    thread.  Replacing the default in-memory connection with one created using
-    check_same_thread=False resolves the sqlite3.ProgrammingError that would
-    otherwise surface in multi-threaded environments.
-
-    We replace ._conn AFTER construction so that _setup_schema() has already
-    created the nvd_cache table on the original connection; we then recreate
-    it on the thread-safe connection.
+    Construct an NVDCacheManager backed by the configured DB path with a
+    thread-safe SQLite connection (check_same_thread=False).
     """
-    manager = NVDCacheManager()
-    # Replace the default connection with a thread-safe one
+    from step11_api.config import settings
+
+    db_path = settings.NVD_CACHE_DB_PATH
+    manager = NVDCacheManager(db_path=db_path)
+    # Replace the default connection with a thread-safe one against the same path
     if manager._conn is not None:
         try:
             manager._conn.close()
         except Exception:
             pass
-    manager._conn = sqlite3.connect(":memory:", check_same_thread=False)
-    # Re-create the schema on the new connection
-    cur = manager._conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS nvd_cache (
-            cve_id TEXT NOT NULL,
-            purl   TEXT NOT NULL,
-            cvss_score REAL,
-            PRIMARY KEY (cve_id, purl)
-        )
-    """)
-    manager._conn.commit()
+    manager._conn = sqlite3.connect(db_path, check_same_thread=False)
+    manager._setup_schema()
+
+    # If the DB is pre-seeded, hydrate _last_synced_at so /health and
+    # /cache/status reflect the actual sync state on cold start.
+    try:
+        cur = manager._conn.cursor()
+        cur.execute("SELECT MAX(synced_at) FROM sync_log")
+        row = cur.fetchone()
+        if row and row[0]:
+            manager._last_synced_at = datetime.fromisoformat(row[0])
+    except Exception:
+        pass
+
     return manager
 
 
@@ -84,9 +79,38 @@ def _make_nvd_cache_manager() -> NVDCacheManager:
 _nvd_cache_manager: NVDCacheManager = _make_nvd_cache_manager()
 
 # In-memory NVD cache dict consumed by ScanOrchestrator.run().
-# ScanOrchestrator.run() accepts a pre-built dict; for the POC an empty dict
-# means vulnerability lookups return no matches until POST /sync is called.
+# Hydrated from the seeded DB at startup so /scans returns CVEs without
+# requiring a /sync call first. POST /sync refreshes both the DB and dict.
 _nvd_cache_dict: Dict[str, Any] = {}
+
+
+def _hydrate_cache_dict_from_db(manager: NVDCacheManager, target: Dict[str, Any]) -> None:
+    """Load all rows from the cache DB into the dict expected by ScanOrchestrator."""
+    target.clear()
+    try:
+        cur = manager._conn.cursor()
+        rows = cur.execute(
+            "SELECT cve_id, purl, cpe, cvss_score, severity, fixed_version, advisory_url "
+            "FROM vulnerabilities"
+        ).fetchall()
+    except Exception:
+        return
+    for cve_id, purl, cpe, cvss_score, severity, fixed_version, advisory_url in rows:
+        entry = {
+            "cve_id": cve_id,
+            "cvss_score": cvss_score,
+            "severity": severity,
+            "fixed_version": fixed_version,
+            "advisory_url": advisory_url,
+        }
+        if purl:
+            target[purl] = entry
+            target[purl.lower()] = entry  # case-insensitive PyPI PURLs
+        if cpe:
+            target[cpe] = entry
+
+# Hydrate the in-memory cache dict from the seeded DB at startup.
+_hydrate_cache_dict_from_db(_nvd_cache_manager, _nvd_cache_dict)
 
 # In-memory scan result store keyed by scan_id UUID string.
 # A production deployment would replace this with a persistent database.
@@ -119,7 +143,7 @@ def get_cache_status_dict() -> Dict[str, Any]:
     # Query total record count from the SQLite connection.
     try:
         cur = _nvd_cache_manager._conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM nvd_cache")
+        cur.execute("SELECT COUNT(*) FROM vulnerabilities")
         row = cur.fetchone()
         record_count: int = row[0] if row else 0
     except Exception:

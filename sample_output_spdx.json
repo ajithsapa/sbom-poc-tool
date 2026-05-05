@@ -1,0 +1,152 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "handson-ml",
+  "documentNamespace": "https://sbom-tool.example.com/spdx/handson-ml-20260410",
+  "creationInfo": {
+    "created": "2026-04-10T12:48:35Z",
+    "creators": [
+      "Tool: sbom-tool-1.0.0"
+    ],
+    "licenseListVersion": "3.21"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-joblib",
+      "name": "joblib",
+      "versionInfo": "0.14.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/joblib@0.14.1"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:joblib_project:joblib:0.14.1:*:*:*:*:python:*:*"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-numpy",
+      "name": "numpy",
+      "versionInfo": "1.22.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/numpy@1.22.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-scipy",
+      "name": "scipy",
+      "versionInfo": "1.6.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/scipy@1.6.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-tensorflow",
+      "name": "tensorflow",
+      "versionInfo": "1.15.5",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/tensorflow@1.15.5"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:*:*:*"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Pillow",
+      "name": "Pillow",
+      "versionInfo": "8.0.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/Pillow@8.0.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-requests",
+      "name": "requests",
+      "versionInfo": "2.25.1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/requests@2.25.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-matplotlib",
+      "name": "matplotlib",
+      "versionInfo": "3.3.4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/matplotlib@3.3.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pandas",
+      "name": "pandas",
+      "versionInfo": "1.2.4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/pandas@1.2.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-scikit-learn",
+      "name": "scikit-learn",
+      "versionInfo": "0.24.2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/scikit-learn@0.24.2"
+        }
+      ]
+    }
+  ]
+}

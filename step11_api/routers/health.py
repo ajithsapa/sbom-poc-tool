@@ -47,10 +47,12 @@ router = APIRouter()
     status_code=200,
     summary="Service liveness and readiness probe",
     description=(
-        "Returns service health status, deployed version, and a summary of NVD "
-        "cache health. Suitable for Kubernetes liveness or readiness probe targets. "
-        "Returns 'degraded' (not 'down') when the cache is stale — the service is "
-        "still operational."
+        "Returns service health, deployed version, and **NVD** "
+        "(National Vulnerability Database) cache status. Returns `degraded` "
+        "(not `down`) when the cache is stale — the service is still "
+        "operational and able to serve scans, just with stale-data warnings. "
+        "Suitable for Kubernetes liveness/readiness probe targets and CI/CD "
+        "smoke tests before a deployment is considered live."
     ),
     responses={
         500: {

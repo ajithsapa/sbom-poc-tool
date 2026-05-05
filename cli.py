@@ -41,6 +41,8 @@ def _load_nvd_cache(db_path: str) -> dict:
         }
         if row["purl"]:
             cache[row["purl"]] = entry
+            # PyPI PURLs are case-insensitive per spec; Syft normalizes to lowercase
+            cache[row["purl"].lower()] = entry
         if row["cpe"]:
             cache[row["cpe"]] = entry
     return cache
@@ -104,10 +106,12 @@ def scan(
 
 @app.command()
 def sync(
-    source: str = typer.Option(..., "--source", help="Path to Grype DB for NVD cache sync"),
+    source: str = typer.Option(..., "--source", help="Path to NVD feed JSON for cache sync"),
+    db: str = typer.Option(None, "--db", help="Path to NVD cache SQLite DB (default: step1b_nvd_cache.db)"),
 ):
-    """Sync the local NVD vulnerability cache from a Grype DB source."""
-    cli = CLIOrchestrator()
+    """Sync the local NVD vulnerability cache from a feed JSON file."""
+    db_path = db or os.environ.get("SBOM_NVD_DB", _DEFAULT_DB)
+    cli = CLIOrchestrator(db_path=db_path)
     result = cli.invoke_sync(source)
     if result["stderr"]:
         typer.echo(result["stderr"], err=True)

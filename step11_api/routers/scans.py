@@ -21,7 +21,7 @@ import os
 import sys
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import JSONResponse
 
 # Ensure session root is importable (dependencies.py also does this, but
@@ -30,6 +30,7 @@ _SESSION_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
+from oss_tool_runner import OSSToolRunner, OSSToolRunnerError  # noqa: E402
 from step6_tdd_green_phase import NVDSyncError  # noqa: E402
 from step7_5_pydantic_models import (  # noqa: E402
     DependencyRecord,
@@ -43,6 +44,8 @@ from step7_5_pydantic_models import (  # noqa: E402
     VulnerabilityRecord,
 )
 from step9_tdd_green_phase_orchestration import ScanOrchestrator, ScanResult  # noqa: E402
+
+_oss_runner = OSSToolRunner()
 
 from ..dependencies import (  # noqa: E402
     get_nvd_cache_dict,
@@ -173,11 +176,26 @@ def _scan_result_to_response(result: ScanResult) -> ScanResponse:
     "",
     response_model=ScanResponse,
     status_code=200,
-    summary="Trigger a new SBOM scan",
+    summary="Run an SBOM scan against a repository (POC Reqs 1–6)",
     description=(
-        "Runs the full SBOM scan pipeline against the specified repository. "
-        "A stale NVD cache does NOT abort the scan — the response warnings[] "
-        "field will contain a stale-cache notice and sbom_document is still produced."
+        "Scans a single source-code repository and produces a complete SBOM "
+        "(Software Bill of Materials) with vulnerability mapping in one call. "
+        "Covers all six POC requirements:\n\n"
+        "- **Req 1**: CLI/API surface, suitable for CI/CD integration.\n"
+        "- **Req 2**: Single runtime environment per scan (`env` field).\n"
+        "- **Req 3**: Full dependency inventory — name, exact version, supplier, "
+        "direct and transitive relationships.\n"
+        "- **Req 4**: Output as machine-readable CycloneDX 1.4 or SPDX 2.3 "
+        "(Software Package Data Exchange) JSON, returned in `sbom_document`.\n"
+        "- **Req 5**: Vulnerability mapping against the local **NVD** "
+        "(National Vulnerability Database, NIST) cache via **PURL** "
+        "(Package URL) and **CPE** (Common Platform Enumeration) identifiers.\n"
+        "- **Req 6**: **CVSS** (Common Vulnerability Scoring System) "
+        "severity classification (High / Medium / Low) with `fixed_version` "
+        "and `advisory_url` per **CVE** (Common Vulnerabilities and Exposures) "
+        "entry in `active_vulns[]`.\n\n"
+        "A stale NVD cache does NOT abort the scan — `warnings[]` flags it "
+        "and the SBOM is still produced."
     ),
     responses={
         422: {"model": ErrorResponse, "description": "Validation error (invalid repo_path, format, or env)"},
@@ -202,11 +220,19 @@ async def create_scan(
     """
     vex_dicts = [vs.model_dump() for vs in request.vex_statements]
 
-    # For the POC the API does not shell out to Syft/Trivy — raw_tool_output
-    # is the empty Syft-format sentinel that OSSToolAdapter.normalise() handles
-    # by returning an empty list of components.  Real deployments would invoke
-    # the OSS tool here and pass its JSON output.
-    raw_tool_output: Dict[str, Any] = {"tool": "syft", "components": []}
+    try:
+        components = _oss_runner.scan(request.repo_path)
+    except OSSToolRunnerError as exc:
+        logger.warning("Syft scan failed: %s", exc)
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="SCAN_TOOL_ERROR",
+                message=str(exc),
+                details={"repo_path": request.repo_path},
+            ).model_dump(),
+        )
+    raw_tool_output: Dict[str, Any] = {"tool": "syft", "components": components}
 
     try:
         result: ScanResult = orchestrator.run(
@@ -261,15 +287,25 @@ async def create_scan(
     "/{scan_id}",
     response_model=ScanResponse,
     status_code=200,
-    summary="Retrieve a stored scan result by ID",
-    description="Returns the ScanResponse for a previously completed scan.",
+    summary="Retrieve a previously completed scan by ID",
+    description=(
+        "Looks up a scan result by the UUID returned from POST /scans. "
+        "Useful for clients that poll for results or need to re-fetch an SBOM "
+        "without re-running the scan. For the POC, results are kept in-memory "
+        "for the lifetime of the API process; production deployments would "
+        "back this with a persistent store."
+    ),
     responses={
         404: {"model": ErrorResponse, "description": "No scan result found for the given scan_id"},
         500: {"model": ErrorResponse, "description": "Internal error while retrieving the scan result"},
     },
 )
 async def get_scan(
-    scan_id: str,
+    scan_id: str = Path(
+        ...,
+        description="UUID returned by a prior POST /scans call (copy from the response).",
+        examples=["a1b2c3d4-e5f6-7890-abcd-ef1234567890"],
+    ),
     scan_store: Dict[str, Any] = Depends(get_scan_store),
 ) -> ScanResponse:
     """

@@ -94,26 +94,39 @@ class DependencyRecord(BaseModel):
     )
     purl: str = Field(
         ...,
-        description="Package URL (PURL) in pkg:ecosystem/name@version format",
+        description=(
+            "**PURL** (Package URL) in `pkg:ecosystem/name@version` format. "
+            "Modern, ecosystem-aware package identifier used as the primary "
+            "key when mapping this dependency against **NVD** "
+            "(National Vulnerability Database, NIST) **CVE** "
+            "(Common Vulnerabilities and Exposures) records (POC Req 5)."
+        ),
         examples=["pkg:pypi/langchain@0.0.101"],
     )
     cpe: Optional[str] = Field(
         default=None,
-        description="Common Platform Enumeration identifier (may be absent for some packages)",
+        description=(
+            "**CPE** (Common Platform Enumeration) identifier — NIST's native "
+            "vulnerability identifier format, used as the fallback match when "
+            "PURL lookup misses (POC Req 5)."
+        ),
         examples=["cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"],
     )
     supplier: Optional[str] = Field(
         default=None,
-        description="Package maintainer or organization",
+        description="Package maintainer or organization (POC Req 3 — supplier attribution).",
         examples=["LangChain, Inc."],
     )
     dependency_type: DependencyType = Field(
         ...,
-        description="Whether the dependency is direct or transitive",
+        description=(
+            "`direct` if declared in this repository's manifest, `transitive` if "
+            "pulled in by another dependency (POC Req 3 — direct + transitive mapping)."
+        ),
     )
     transitive_via: Optional[str] = Field(
         default=None,
-        description="Name of the direct dependency that introduced this transitive dependency",
+        description="For transitive deps, the direct dependency that introduced this one.",
         examples=["langchain"],
     )
 
@@ -127,29 +140,39 @@ class VulnerabilityRecord(BaseModel):
 
     cve_id: str = Field(
         ...,
-        description="CVE identifier",
+        description=(
+            "**CVE** (Common Vulnerabilities and Exposures) ID — the globally "
+            "unique catalog entry for this security flaw, issued by MITRE."
+        ),
         examples=["CVE-2023-34540"],
     )
     purl: str = Field(
         ...,
-        description="PURL of the affected package",
+        description="**PURL** (Package URL) of the affected package.",
         examples=["pkg:pypi/langchain@0.0.101"],
     )
     cpe: Optional[str] = Field(
         default=None,
-        description="CPE identifier of the affected package",
+        description="**CPE** (Common Platform Enumeration) identifier of the affected package.",
         examples=["cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*"],
     )
     cvss_score: float = Field(
         ...,
         ge=0.0,
         le=10.0,
-        description="CVSS v3.1 base score",
+        description=(
+            "**CVSS** (Common Vulnerability Scoring System) v3.1 base score, "
+            "0.0–10.0. Higher = more severe (POC Req 6)."
+        ),
         examples=[9.8],
     )
     severity: Severity = Field(
         ...,
-        description="CVSS severity band derived from the score",
+        description=(
+            "Severity band derived from the CVSS score (POC Req 6 — High / "
+            "Medium / Low classification): Critical (≥ 9.0), High (7.0–8.9), "
+            "Medium (4.0–6.9), Low (< 4.0)."
+        ),
     )
     affected_version: Optional[str] = Field(
         default=None,
@@ -158,12 +181,15 @@ class VulnerabilityRecord(BaseModel):
     )
     fixed_version: Optional[str] = Field(
         default=None,
-        description="First version that resolves the vulnerability",
+        description=(
+            "First package version that resolves this CVE. The remediation "
+            "recommendation per POC Req 6."
+        ),
         examples=["0.0.247"],
     )
     advisory_url: Optional[str] = Field(
         default=None,
-        description="Link to NVD advisory or vendor security advisory",
+        description="Link to the NVD advisory or vendor security advisory (POC Req 6).",
         examples=["https://nvd.nist.gov/vuln/detail/CVE-2023-34540"],
     )
 
@@ -176,7 +202,10 @@ class EnrichedVulnerability(VulnerabilityRecord):
     """
     upgrade_command: Optional[str] = Field(
         default=None,
-        description="Package manager upgrade command derived from fixed_version",
+        description=(
+            "Ready-to-run package manager command that installs the fixed "
+            "version (POC Req 6 — actionable remediation)."
+        ),
         examples=["pip install langchain==0.0.247"],
     )
     vex_filtered: bool = Field(
@@ -221,9 +250,27 @@ class VexStatement(BaseModel):
 class ScanRequest(BaseModel):
     """
     Request body for POST /scans.
-    Maps to parameters of ScanOrchestrator.run() in step9_tdd_green_phase_orchestration.py.
+    Specifies the repository to scan, the SBOM output format, the runtime
+    environment, and any optional VEX statements to apply.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "repo_path": "/Users/ajith/Code/demo-repos/handson-ml-fixture",
+                "format": "cyclonedx",
+                "env": "development",
+                "vex_statements": [
+                    {
+                        "cve_id": "CVE-2022-21797",
+                        "purl": "pkg:pypi/joblib@0.14.1",
+                        "status": "not_affected",
+                        "justification": "vulnerable_code_not_in_execute_path",
+                    }
+                ],
+            }
+        },
+    )
 
     repo_path: str = Field(
         ...,
@@ -231,15 +278,22 @@ class ScanRequest(BaseModel):
             "Absolute or relative filesystem path to the repository to scan. "
             "The path must exist on the server. Must not be empty."
         ),
-        examples=["/repos/TaskMatrix"],
+        examples=["/Users/ajith/Code/demo-repos/handson-ml-fixture"],
     )
     format: SbomFormat = Field(
         ...,
-        description="Output format for the generated SBOM document",
+        description=(
+            "SBOM output format (POC Req 4). `cyclonedx` produces CycloneDX 1.4 "
+            "with vulnerabilities[] inline; `spdx` produces SPDX 2.3 with "
+            "PURL+CPE refs per package."
+        ),
     )
     env: Environment = Field(
         ...,
-        description="Runtime environment context for the scanned repository",
+        description=(
+            "Runtime environment for this scan (POC Req 2 — single-environment "
+            "discovery and reporting per scan)."
+        ),
     )
     vex_statements: List[VexStatement] = Field(
         default_factory=list,
@@ -256,8 +310,12 @@ class SyncRequest(BaseModel):
 
     source_path: str = Field(
         ...,
-        description="Filesystem path to the Grype vulnerability database to sync from",
-        examples=["/var/grype/db/vulnerability.db"],
+        description=(
+            "Filesystem path to an NVD feed JSON or Grype vulnerability DB to "
+            "sync from. The cache is the only source of truth for vulnerability "
+            "lookup at scan time (POC Req 7)."
+        ),
+        examples=["/Users/ajith/Code/agent-for-agent/outputs/sessions/SBOM-20260409-sb01/sample_nvd_feed.json"],
     )
 
 
@@ -269,9 +327,105 @@ class SyncRequest(BaseModel):
 class ScanResponse(BaseModel):
     """
     Response body for POST /scans and GET /scans/{scan_id}.
-    Maps directly to ScanResult dataclass in step9_tdd_green_phase_orchestration.py.
+    Carries the full SBOM, dependency inventory, and CVE matches for a scan.
     """
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "scan_id": "82adcf4e-429a-4dbc-8b10-8b3ab03b2dd6",
+                "repo_name": "handson-ml-fixture",
+                "output_format": "cyclonedx",
+                "dependencies": [
+                    {
+                        "name": "joblib",
+                        "version": "0.14.1",
+                        "purl": "pkg:pypi/joblib@0.14.1",
+                        "cpe": "cpe:2.3:a:python:joblib:0.14.1:*:*:*:*:*:*:*",
+                        "supplier": "PyPI",
+                        "dependency_type": "direct",
+                        "transitive_via": None,
+                    },
+                    {
+                        "name": "tensorflow",
+                        "version": "1.15.5",
+                        "purl": "pkg:pypi/tensorflow@1.15.5",
+                        "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:*:*:*",
+                        "supplier": "PyPI",
+                        "dependency_type": "direct",
+                        "transitive_via": None,
+                    },
+                ],
+                "active_vulns": [
+                    {
+                        "cve_id": "CVE-2022-21797",
+                        "purl": "pkg:pypi/joblib@0.14.1",
+                        "cpe": "cpe:2.3:a:python:joblib:0.14.1:*:*:*:*:*:*:*",
+                        "cvss_score": 9.8,
+                        "severity": "High",
+                        "affected_version": "< 1.2.0",
+                        "fixed_version": "1.2.0",
+                        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797",
+                        "upgrade_command": "pip install joblib==1.2.0",
+                        "vex_filtered": False,
+                    },
+                    {
+                        "cve_id": "CVE-2022-29216",
+                        "purl": "pkg:pypi/tensorflow@1.15.5",
+                        "cpe": "cpe:2.3:a:google:tensorflow:1.15.5:*:*:*:*:*:*:*",
+                        "cvss_score": 8.8,
+                        "severity": "High",
+                        "affected_version": "< 2.9.0",
+                        "fixed_version": "2.9.0",
+                        "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2022-29216",
+                        "upgrade_command": "pip install tensorflow==2.9.0",
+                        "vex_filtered": False,
+                    },
+                ],
+                "suppressed_vulns": [],
+                "warnings": [
+                    "NVD cache is stale (last synced: 2026-04-10T13:15:46+00:00). Please run sbom-tool sync to refresh vulnerability data."
+                ],
+                "sbom_document": {
+                    "bomFormat": "CycloneDX",
+                    "specVersion": "1.4",
+                    "serialNumber": "urn:uuid:82adcf4e-429a-4dbc-8b10-8b3ab03b2dd6",
+                    "version": 1,
+                    "metadata": {
+                        "timestamp": "2026-05-05T13:15:46Z",
+                        "tools": [{"vendor": "SBOM POC", "name": "sbom-tool", "version": "1.0.0"}],
+                    },
+                    "components": [
+                        {
+                            "type": "library",
+                            "name": "joblib",
+                            "version": "0.14.1",
+                            "purl": "pkg:pypi/joblib@0.14.1",
+                            "supplier": {"name": "PyPI"},
+                        }
+                    ],
+                    "vulnerabilities": [
+                        {
+                            "id": "CVE-2022-21797",
+                            "ratings": [{"score": 9.8, "severity": "high", "method": "CVSSv31"}],
+                            "affects": [{"ref": "pkg:pypi/joblib@0.14.1"}],
+                            "advisories": [{"url": "https://nvd.nist.gov/vuln/detail/CVE-2022-21797"}],
+                            "recommendation": "Upgrade to 1.2.0",
+                        }
+                    ],
+                },
+                "workflow_states_visited": [
+                    "idle",
+                    "scanning_dependencies",
+                    "deduplicating_output",
+                    "matching_vulnerabilities",
+                    "filtering_vex",
+                    "enriching_remediation",
+                    "exporting_sbom",
+                ],
+            }
+        },
+    )
 
     scan_id: str = Field(
         ...,
@@ -289,28 +443,43 @@ class ScanResponse(BaseModel):
     )
     dependencies: List[DependencyRecord] = Field(
         ...,
-        description="All deduplicated dependencies discovered in the repository",
+        description=(
+            "Full dependency inventory (POC Req 3): every component with name, "
+            "exact version, supplier, and direct/transitive marker. Deduplicated."
+        ),
     )
     active_vulns: List[EnrichedVulnerability] = Field(
         ...,
-        description="Vulnerabilities not suppressed by VEX statements, enriched with remediation",
+        description=(
+            "CVEs matched against this repository's dependencies (POC Reqs 5 & 6). "
+            "Each entry carries CVSS score, severity band (High / Medium / Low), "
+            "fixed_version, advisory URL, and an upgrade command. Excludes any "
+            "CVE suppressed by a VEX statement."
+        ),
     )
     suppressed_vulns: List[VulnerabilityRecord] = Field(
         ...,
-        description="Vulnerabilities suppressed by a matching VEX statement",
+        description=(
+            "CVEs suppressed by a matching **VEX** (Vulnerability Exploitability "
+            "eXchange) statement — vulnerabilities that exist in the code but "
+            "are flagged as not exploitable (e.g. `not_affected` because the "
+            "vulnerable code path is never reached)."
+        ),
     )
     warnings: List[str] = Field(
         ...,
         description=(
-            "Non-fatal warnings. Includes stale NVD cache notice "
-            "when cache age exceeds 7 days."
+            "Non-fatal warnings. Includes a stale-cache notice when the NVD "
+            "cache is older than 7 days (POC Req 7)."
         ),
     )
     sbom_document: Dict[str, Any] = Field(
         ...,
         description=(
-            "Serialized SBOM document. CycloneDX 1.4 or SPDX 2.3 JSON "
-            "depending on output_format."
+            "Machine-readable **SBOM** (Software Bill of Materials) document "
+            "(POC Req 4). CycloneDX 1.4 or **SPDX** (Software Package Data "
+            "Exchange) 2.3 JSON depending on `output_format`. Downloadable "
+            "as-is for ingestion by other SBOM-aware tools."
         ),
     )
     workflow_states_visited: List[str] = Field(

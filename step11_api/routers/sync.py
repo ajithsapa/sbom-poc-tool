@@ -41,11 +41,15 @@ router = APIRouter()
     "",
     response_model=SyncResponse,
     status_code=200,
-    summary="Synchronize the local NVD vulnerability cache",
+    summary="Refresh the local NVD vulnerability cache (POC Req 7)",
     description=(
-        "Triggers NVDSyncOrchestrator to ingest a local Grype vulnerability "
-        "database file into the SQLite NVD cache. Equivalent to `sbom-tool sync`. "
-        "Run before scanning stale repositories to ensure vulnerability data is current."
+        "Performs an on-demand refresh of the local **NVD** "
+        "(National Vulnerability Database, NIST) cache from a local feed file. "
+        "Satisfies the 'periodic NVD sync, no live API call at scan time' "
+        "requirement — the cache is the only source of truth for vulnerability "
+        "lookup during a scan. The cache becomes stale after 7 days; this "
+        "endpoint resets the staleness clock and reports the count of records "
+        "added vs. updated. Equivalent to the `sbom-tool sync` CLI command."
     ),
     responses={
         404: {
