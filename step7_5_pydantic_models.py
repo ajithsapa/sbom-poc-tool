@@ -257,7 +257,7 @@ class ScanRequest(BaseModel):
         populate_by_name=True,
         json_schema_extra={
             "example": {
-                "repo_path": "/Users/ajith/Code/demo-repos/handson-ml-fixture",
+                "repo_path": "./examples/handson-ml-fixture",
                 "format": "cyclonedx",
                 "env": "development",
                 "vex_statements": [
@@ -278,7 +278,7 @@ class ScanRequest(BaseModel):
             "Absolute or relative filesystem path to the repository to scan. "
             "The path must exist on the server. Must not be empty."
         ),
-        examples=["/Users/ajith/Code/demo-repos/handson-ml-fixture"],
+        examples=["./examples/handson-ml-fixture"],
     )
     format: SbomFormat = Field(
         ...,
@@ -315,7 +315,7 @@ class SyncRequest(BaseModel):
             "sync from. The cache is the only source of truth for vulnerability "
             "lookup at scan time (POC Req 7)."
         ),
-        examples=["/Users/ajith/Code/agent-for-agent/outputs/sessions/SBOM-20260409-sb01/sample_nvd_feed.json"],
+        examples=["./sample_nvd_feed.json"],
     )
 
 

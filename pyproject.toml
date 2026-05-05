@@ -7,7 +7,7 @@ name = "sbom-tool"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
-    "typer>=0.12",
+    "typer>=0.15",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",

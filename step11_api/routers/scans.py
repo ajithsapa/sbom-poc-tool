@@ -220,6 +220,18 @@ async def create_scan(
     """
     vex_dicts = [vs.model_dump() for vs in request.vex_statements]
 
+    # Validate repository path exists before invoking the OSS scanner, so we
+    # return a precise INVALID_REPO_PATH 422 rather than a generic tool error.
+    if not os.path.isdir(request.repo_path):
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="INVALID_REPO_PATH",
+                message=f"Repository path does not exist or is not a directory: {request.repo_path}",
+                details={"repo_path": request.repo_path},
+            ).model_dump(),
+        )
+
     try:
         components = _oss_runner.scan(request.repo_path)
     except OSSToolRunnerError as exc:
