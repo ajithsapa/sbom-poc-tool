@@ -59,6 +59,9 @@ def _clone_to_record(clone) -> ClonedRepoRecord:
         "clone timestamp, and size. Use the returned `name` to delete a clone "
         "via `DELETE /api/v1/repos/{name}`."
     ),
+    responses={
+        401: {"model": ErrorResponse, "description": "INVALID_API_KEY — missing or wrong X-API-Key header"},
+    },
 )
 async def list_repos(
     clone_manager: CloneManager = Depends(get_clone_manager),
@@ -107,9 +110,10 @@ def _delete_handler(name: str, clone_manager: CloneManager):
         "returned by `GET /api/v1/repos`. Returns 404 if no such clone exists."
     ),
     responses={
-        404: {"model": ErrorResponse, "description": "No clone with the given name"},
-        422: {"model": ErrorResponse, "description": "Invalid clone name (e.g. path traversal attempt)"},
-        500: {"model": ErrorResponse, "description": "Filesystem error while deleting"},
+        401: {"model": ErrorResponse, "description": "INVALID_API_KEY — missing or wrong X-API-Key header"},
+        404: {"model": ErrorResponse, "description": "REPO_NOT_FOUND — no clone with the given name"},
+        422: {"model": ErrorResponse, "description": "INVALID_REPO_NAME — invalid clone name (e.g. path traversal attempt)"},
+        500: {"model": ErrorResponse, "description": "REPO_DELETE_FAILED — filesystem error while deleting"},
     },
 )
 async def delete_repo(

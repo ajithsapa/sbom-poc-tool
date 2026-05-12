@@ -208,7 +208,41 @@ def _scan_result_to_response(result: ScanResult) -> ScanResponse:
         "and the SBOM is still produced."
     ),
     responses={
-        422: {"model": ErrorResponse, "description": "Validation error (invalid repo_path, format, or env)"},
+        401: {
+            "model": ErrorResponse,
+            "description": (
+                "INVALID_API_KEY — missing or wrong X-API-Key header "
+                "(only when the server is configured with an API_KEY env var)."
+            ),
+        },
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "REPO_NAME_CONFLICT — a clone with the same workspace name already "
+                "exists. Delete it first via DELETE /api/v1/repos/{name}."
+            ),
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": (
+                "Request rejected. One of:\n"
+                "- **INVALID_REPO_PATH** — `repo_path` does not exist on disk.\n"
+                "- **VALIDATION_ERROR** — request body is malformed or violates the "
+                "exactly-one-of(`repo_path`, `repo_url`) rule.\n"
+                "- **REPO_HOST_NOT_ALLOWED** — `repo_url` host is not on the allowlist "
+                "(only github.com / www.github.com accepted).\n"
+                "- **REPO_TOO_LARGE** — the cloned repo exceeded `SBOM_MAX_CLONE_BYTES` "
+                "(default 50 MB) and was deleted.\n"
+                "- **REPO_FOREIGN_MANIFEST** — repo contains dependency manifests for "
+                "ecosystems other than Python or JavaScript / TypeScript (e.g. `go.mod`, "
+                "`Cargo.toml`, `pom.xml`, `*.csproj`). The clone has been deleted.\n"
+                "- **REPO_UNSUPPORTED_LANGUAGE** — no Python or JavaScript / TypeScript "
+                "dependency manifest was found.\n"
+                "- **REPO_CLONE_FAILED** — `git clone` failed (network error, private "
+                "repo, bad URL, etc.). The clone has been cleaned up.\n"
+                "- **SCAN_TOOL_ERROR** — the underlying Syft scan failed."
+            ),
+        },
         500: {"model": ErrorResponse, "description": "Unexpected internal error during scan pipeline"},
     },
 )
@@ -411,6 +445,7 @@ async def create_scan(
         "back this with a persistent store."
     ),
     responses={
+        401: {"model": ErrorResponse, "description": "INVALID_API_KEY — missing or wrong X-API-Key header"},
         404: {"model": ErrorResponse, "description": "No scan result found for the given scan_id"},
         500: {"model": ErrorResponse, "description": "Internal error while retrieving the scan result"},
     },
