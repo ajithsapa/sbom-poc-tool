@@ -1,5 +1,9 @@
 """
-Auto-generated from step7_5_api_contract.yaml — DO NOT EDIT
+Originally auto-generated from step7_5_api_contract.yaml.
+NOTE TO HUMANS AND LLMs: This file has been hand-extended past the generator
+output. Do NOT regenerate from the YAML without first porting the additions
+below back into step7_5_api_contract.yaml, or the runtime API will lose
+features.
 
 Pydantic v2 request/response models for the SBOM POC Tool API.
 Session: SBOM-20260409-sb01
@@ -9,6 +13,15 @@ Traceability:
   - Field names and types match step9_tdd_green_phase_orchestration.py (ScanResult, SyncResult)
   - Enum values match step6_tdd_green_phase.py (ScanJobValidator, CVSSSeverityClassifier)
   - Example values derived from step1b_mock_entities.json
+
+Manual additions (post-generation, not present in step7_5_api_contract.yaml):
+  - ScanRequest.repo_url (Optional[str])      — public git URL alternative to repo_path
+  - ScanRequest._exactly_one_repo_source      — model_validator enforcing exactly-one-of
+  - ScanRequest.repo_path                     — relaxed to Optional[str]
+  - ClonedRepoRecord                          — entry shape for GET /api/v1/repos
+  - ClonedRepoListResponse                    — response body for GET /api/v1/repos
+These back the git-clone-as-target feature and the /api/v1/repos workspace endpoints
+(see routers/repos.py and git_cloner.py).
 """
 
 from __future__ import annotations
@@ -17,7 +30,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -272,13 +285,25 @@ class ScanRequest(BaseModel):
         },
     )
 
-    repo_path: str = Field(
-        ...,
+    repo_path: Optional[str] = Field(
+        default=None,
         description=(
             "Absolute or relative filesystem path to the repository to scan. "
-            "The path must exist on the server. Must not be empty."
+            "The path must exist on the server. Exactly one of `repo_path` or "
+            "`repo_url` must be provided."
         ),
         examples=["./examples/handson-ml-fixture"],
+    )
+    repo_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Public git repository URL to clone and scan. Must use https, http, "
+            "or git scheme; must not contain embedded credentials. The repo is "
+            "shallow-cloned (`--depth=1`) into the server's clones workspace and "
+            "persists until removed via DELETE /api/v1/repos/{name}. Exactly one "
+            "of `repo_path` or `repo_url` must be provided."
+        ),
+        examples=["https://github.com/anchore/syft.git"],
     )
     format: SbomFormat = Field(
         ...,
@@ -299,6 +324,16 @@ class ScanRequest(BaseModel):
         default_factory=list,
         description="Optional list of OpenVEX statements to apply before enrichment",
     )
+
+    @model_validator(mode="after")
+    def _exactly_one_repo_source(self) -> "ScanRequest":
+        has_path = bool(self.repo_path and self.repo_path.strip())
+        has_url = bool(self.repo_url and self.repo_url.strip())
+        if has_path == has_url:
+            raise ValueError(
+                "Exactly one of repo_path or repo_url must be provided"
+            )
+        return self
 
 
 class SyncRequest(BaseModel):
@@ -584,6 +619,50 @@ class HealthResponse(BaseModel):
     )
 
 
+class ClonedRepoRecord(BaseModel):
+    """
+    A single repository cloned into the server's workspace via `POST /scans`
+    with `repo_url`. Returned by `GET /api/v1/repos`.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(
+        ...,
+        description="Workspace directory name (derived from the URL basename, minus '.git').",
+        examples=["syft"],
+    )
+    url: str = Field(
+        "",
+        description="Original git URL the repo was cloned from. May be empty for legacy clones.",
+        examples=["https://github.com/anchore/syft.git"],
+    )
+    path: str = Field(
+        ...,
+        description="Absolute path to the clone on the server's filesystem.",
+        examples=["/data/clones/syft"],
+    )
+    cloned_at: str = Field(
+        "",
+        description="ISO-8601 UTC timestamp of when the clone completed. Empty for legacy clones.",
+        examples=["2026-05-12T10:15:30.123456+00:00"],
+    )
+    size_bytes: int = Field(
+        0,
+        description="On-disk size of the clone in bytes (sum of file sizes; excludes filesystem overhead).",
+        examples=[12345678],
+    )
+
+
+class ClonedRepoListResponse(BaseModel):
+    """Response body for `GET /api/v1/repos` — the workspace inventory."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    repos: List[ClonedRepoRecord] = Field(
+        default_factory=list,
+        description="All cloned repos currently present in the workspace.",
+    )
+
+
 class ErrorResponse(BaseModel):
     """
     Unified error response for all 4xx and 5xx responses.
@@ -631,5 +710,7 @@ __all__ = [
     "SyncResponse",
     "CacheStatusResponse",
     "HealthResponse",
+    "ClonedRepoRecord",
+    "ClonedRepoListResponse",
     "ErrorResponse",
 ]

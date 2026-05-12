@@ -5,11 +5,13 @@ Session: SBOM-20260409-sb01
 Generated: Step 11 — FastAPI API Generation
 
 Architecture:
-  POST /api/v1/scans          -> routers/scans.py  (ScanOrchestrator)
-  GET  /api/v1/scans/{id}     -> routers/scans.py  (in-memory store)
-  POST /api/v1/sync           -> routers/sync.py   (NVDSyncOrchestrator)
-  GET  /api/v1/cache/status   -> routers/cache.py  (NVDCacheManager)
-  GET  /api/v1/health         -> routers/health.py (liveness probe)
+  POST   /api/v1/scans          -> routers/scans.py  (ScanOrchestrator)
+  GET    /api/v1/scans/{id}     -> routers/scans.py  (in-memory store)
+  POST   /api/v1/sync           -> routers/sync.py   (NVDSyncOrchestrator)
+  GET    /api/v1/cache/status   -> routers/cache.py  (NVDCacheManager)
+  GET    /api/v1/health         -> routers/health.py (liveness probe)
+  GET    /api/v1/repos          -> routers/repos.py  (workspace inventory)
+  DELETE /api/v1/repos/{name}   -> routers/repos.py  (wipe a clone)
 
 Run with:
   uvicorn step11_api.main:app --reload --host 0.0.0.0 --port 8000
@@ -37,7 +39,7 @@ if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
 from .config import settings  # noqa: E402
-from .routers import cache, health, scans, sync  # noqa: E402
+from .routers import cache, health, repos, scans, sync  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -131,6 +133,11 @@ def create_app() -> FastAPI:
         health.router,
         prefix="/api/v1/health",
         tags=["workflow-state"],
+    )
+    application.include_router(
+        repos.router,
+        prefix="/api/v1/repos",
+        tags=["business-logic"],
     )
 
     # ------------------------------------------------------------------

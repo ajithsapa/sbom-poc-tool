@@ -368,3 +368,162 @@ class TestGetScanEndpoint:
 
         get_data = client.get(f"/api/v1/scans/{scan_id}").json()
         assert get_data["output_format"] == "spdx"
+
+
+# ---------------------------------------------------------------------------
+# Git URL clone feature — request validation + /api/v1/repos endpoints
+# ---------------------------------------------------------------------------
+
+class TestScanRequestUrlValidation:
+    """ScanRequest validator must enforce exactly-one-of(repo_path, repo_url)."""
+
+    def test_neither_repo_path_nor_repo_url_returns_422(self, client):
+        response = client.post(
+            "/api/v1/scans",
+            json={"format": "cyclonedx", "env": "development"},
+        )
+        assert response.status_code == 422
+
+    def test_both_repo_path_and_repo_url_returns_422(self, client, temp_repo):
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_path": temp_repo,
+                "repo_url": "https://github.com/example/example.git",
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_invalid_url_scheme_returns_422(self, client):
+        # Validator runs at the request layer; we never reach the cloner here.
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_url": "file:///etc/passwd",
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        # The Pydantic model accepts any string; the cloner rejects the scheme.
+        # Either is acceptable, but both must surface 422 with details.
+        assert response.status_code == 422
+
+    def test_url_with_embedded_credentials_returns_422(self, client):
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_url": "https://user:token@github.com/example/repo.git",
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["error"] in ("REPO_CLONE_FAILED", "VALIDATION_ERROR")
+
+
+class TestReposEndpoint:
+    """GET/DELETE/PUT /api/v1/repos exercised against the real CloneManager
+    by populating the workspace directly (no network required)."""
+
+    @pytest.fixture
+    def populated_workspace(self):
+        """Drop two fake clones into the active CloneManager's workspace."""
+        from step11_api.dependencies import get_clone_manager
+        mgr = get_clone_manager()
+        names = ["test-clone-alpha", "test-clone-beta"]
+        for name in names:
+            target = os.path.join(str(mgr.workspace_dir), name)
+            os.makedirs(target, exist_ok=True)
+            # Make it scannable in case a downstream test runs it through Syft.
+            with open(os.path.join(target, "requirements.txt"), "w") as fh:
+                fh.write("requests==2.31.0\n")
+            with open(os.path.join(target, ".sbom-clone.json"), "w") as fh:
+                json.dump(
+                    {"url": f"https://example.invalid/{name}.git", "cloned_at": "2026-05-12T00:00:00+00:00"},
+                    fh,
+                )
+        yield names
+        # Cleanup
+        for name in names:
+            target = os.path.join(str(mgr.workspace_dir), name)
+            if os.path.isdir(target):
+                import shutil
+                shutil.rmtree(target, ignore_errors=True)
+
+    def test_list_repos_returns_200(self, client):
+        response = client.get("/api/v1/repos")
+        assert response.status_code == 200
+        assert "repos" in response.json()
+
+    def test_list_repos_includes_populated_entries(self, client, populated_workspace):
+        names_present = {r["name"] for r in client.get("/api/v1/repos").json()["repos"]}
+        for name in populated_workspace:
+            assert name in names_present
+
+    def test_list_repos_includes_url_metadata(self, client, populated_workspace):
+        repos = client.get("/api/v1/repos").json()["repos"]
+        targeted = [r for r in repos if r["name"] == populated_workspace[0]]
+        assert targeted, "expected populated clone to appear in listing"
+        assert targeted[0]["url"].endswith(".git")
+        assert targeted[0]["cloned_at"]
+
+    def test_delete_repo_returns_200_and_removes_entry(self, client, populated_workspace):
+        target_name = populated_workspace[0]
+        response = client.delete(f"/api/v1/repos/{target_name}")
+        assert response.status_code == 200
+        assert response.json() == {"deleted": True, "name": target_name}
+        names_after = {r["name"] for r in client.get("/api/v1/repos").json()["repos"]}
+        assert target_name not in names_after
+
+    def test_delete_repo_returns_404_for_unknown(self, client):
+        response = client.delete("/api/v1/repos/this-clone-does-not-exist-9999")
+        assert response.status_code == 404
+        assert response.json()["error"] == "REPO_NOT_FOUND"
+
+    def test_delete_repo_rejects_path_traversal(self, client):
+        response = client.delete("/api/v1/repos/..")
+        # FastAPI path normalization may catch ".." before the handler does;
+        # either way, no traversal should succeed.
+        assert response.status_code in (404, 422)
+
+
+class TestGitClonerUnit:
+    """Pure-unit tests for git_cloner helpers — no network, no subprocess."""
+
+    def test_validate_url_rejects_empty(self):
+        from git_cloner import GitCloneError, _validate_url
+        with pytest.raises(GitCloneError):
+            _validate_url("")
+
+    def test_validate_url_rejects_file_scheme(self):
+        from git_cloner import GitCloneError, _validate_url
+        with pytest.raises(GitCloneError):
+            _validate_url("file:///etc/passwd")
+
+    def test_validate_url_rejects_embedded_creds(self):
+        from git_cloner import GitCloneError, _validate_url
+        with pytest.raises(GitCloneError):
+            _validate_url("https://user:pw@github.com/x/y.git")
+
+    def test_validate_url_accepts_https(self):
+        from git_cloner import _validate_url
+        # No exception means valid.
+        _validate_url("https://github.com/anchore/syft.git")
+
+    def test_repo_name_strips_dot_git(self):
+        from git_cloner import repo_name_from_url
+        assert repo_name_from_url("https://github.com/anchore/syft.git") == "syft"
+
+    def test_repo_name_handles_trailing_slash(self):
+        from git_cloner import repo_name_from_url
+        assert repo_name_from_url("https://github.com/anchore/syft/") == "syft"
+
+    def test_clone_collision_raises(self, tmp_path):
+        from git_cloner import CloneManager, GitCloneError
+        mgr = CloneManager(workspace_dir=str(tmp_path))
+        # Pre-create a clone dir
+        (tmp_path / "syft").mkdir()
+        with pytest.raises(GitCloneError, match="already exists"):
+            mgr.clone("https://github.com/anchore/syft.git")

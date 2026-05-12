@@ -30,6 +30,7 @@ _SESSION_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
+from git_cloner import CloneManager, GitCloneError  # noqa: E402
 from oss_tool_runner import OSSToolRunner, OSSToolRunnerError  # noqa: E402
 from step6_tdd_green_phase import NVDSyncError  # noqa: E402
 from step7_5_pydantic_models import (  # noqa: E402
@@ -48,6 +49,7 @@ from step9_tdd_green_phase_orchestration import ScanOrchestrator, ScanResult  # 
 _oss_runner = OSSToolRunner()
 
 from ..dependencies import (  # noqa: E402
+    get_clone_manager,
     get_nvd_cache_dict,
     get_nvd_cache_manager,
     get_scan_orchestrator,
@@ -208,6 +210,7 @@ async def create_scan(
     nvd_cache_dict: Dict[str, Any] = Depends(get_nvd_cache_dict),
     scan_store: Dict[str, Any] = Depends(get_scan_store),
     nvd_cache_manager=Depends(get_nvd_cache_manager),
+    clone_manager: CloneManager = Depends(get_clone_manager),
 ) -> ScanResponse:
     """
     Execute the full SBOM scan pipeline and return results.
@@ -220,20 +223,41 @@ async def create_scan(
     """
     vex_dicts = [vs.model_dump() for vs in request.vex_statements]
 
+    # Resolve repo_url -> a local clone path. The clone persists across the
+    # request lifecycle; remove it via DELETE /api/v1/repos/{name}.
+    if request.repo_url:
+        try:
+            cloned = clone_manager.clone(request.repo_url)
+        except GitCloneError as exc:
+            msg = str(exc)
+            status = 409 if "already exists" in msg else 422
+            return JSONResponse(
+                status_code=status,
+                content=ErrorResponse(
+                    error="REPO_CLONE_FAILED" if status == 422 else "REPO_NAME_CONFLICT",
+                    message=msg,
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        scan_target_path = cloned.path
+        logger.info("Cloned repo from URL: name=%s path=%s", cloned.name, cloned.path)
+    else:
+        scan_target_path = request.repo_path
+
     # Validate repository path exists before invoking the OSS scanner, so we
     # return a precise INVALID_REPO_PATH 422 rather than a generic tool error.
-    if not os.path.isdir(request.repo_path):
+    if not os.path.isdir(scan_target_path):
         return JSONResponse(
             status_code=422,
             content=ErrorResponse(
                 error="INVALID_REPO_PATH",
-                message=f"Repository path does not exist or is not a directory: {request.repo_path}",
-                details={"repo_path": request.repo_path},
+                message=f"Repository path does not exist or is not a directory: {scan_target_path}",
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
 
     try:
-        components = _oss_runner.scan(request.repo_path)
+        components = _oss_runner.scan(scan_target_path)
     except OSSToolRunnerError as exc:
         logger.warning("Syft scan failed: %s", exc)
         return JSONResponse(
@@ -241,14 +265,14 @@ async def create_scan(
             content=ErrorResponse(
                 error="SCAN_TOOL_ERROR",
                 message=str(exc),
-                details={"repo_path": request.repo_path},
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
     raw_tool_output: Dict[str, Any] = {"tool": "syft", "components": components}
 
     try:
         result: ScanResult = orchestrator.run(
-            repo_path=request.repo_path,
+            repo_path=scan_target_path,
             output_format=request.format.value,
             env=request.env.value,
             nvd_cache=nvd_cache_dict,
@@ -264,7 +288,7 @@ async def create_scan(
             content=ErrorResponse(
                 error="INVALID_REPO_PATH",
                 message=str(exc),
-                details={"repo_path": request.repo_path},
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
     except NVDSyncError as exc:

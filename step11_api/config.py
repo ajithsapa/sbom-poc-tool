@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     # NVD cache across application restarts. Defaults to ":memory:" (POC mode).
     NVD_CACHE_DB_PATH: str = ":memory:"
 
+    # ------------------------------------------------------------------
+    # Git clone workspace
+    # ------------------------------------------------------------------
+    # Directory under which public-repo clones are stored (one subdir per repo).
+    # Defaults to <session_root>/clones; override with SBOM_CLONES_DIR.
+    SBOM_CLONES_DIR: str = ""
+    # Hard timeout for `git clone --depth=1`, in seconds.
+    SBOM_CLONE_TIMEOUT_SECONDS: int = 120
+
     @field_validator("LOG_LEVEL")
     @classmethod
     def validate_log_level(cls, v: str) -> str:

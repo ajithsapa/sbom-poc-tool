@@ -29,6 +29,7 @@ if _SESSION_ROOT not in sys.path:
 # ---------------------------------------------------------------------------
 # Business + orchestration imports (resolved via sys.path above)
 # ---------------------------------------------------------------------------
+from git_cloner import CloneManager  # noqa: E402
 from step6_tdd_green_phase import NVDCacheManager, NVDSyncError  # noqa: E402
 from step9_tdd_green_phase_orchestration import (  # noqa: E402
     NVDSyncOrchestrator,
@@ -117,6 +118,22 @@ _hydrate_cache_dict_from_db(_nvd_cache_manager, _nvd_cache_dict)
 _scan_store: Dict[str, Any] = {}
 
 
+def _make_clone_manager() -> CloneManager:
+    """Construct the CloneManager from settings, defaulting to <session_root>/clones."""
+    from step11_api.config import settings
+
+    workspace = settings.SBOM_CLONES_DIR or os.path.join(_SESSION_ROOT, "clones")
+    return CloneManager(
+        workspace_dir=workspace,
+        clone_timeout_seconds=settings.SBOM_CLONE_TIMEOUT_SECONDS,
+    )
+
+
+# Shared CloneManager — manages all repos cloned via POST /scans (repo_url)
+# and exposed/managed via /api/v1/repos.
+_clone_manager: CloneManager = _make_clone_manager()
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -198,3 +215,8 @@ def get_nvd_cache_dict() -> Dict[str, Any]:
 def get_scan_store() -> Dict[str, Any]:
     """Returns the module-level scan result store (keyed by scan_id)."""
     return _scan_store
+
+
+def get_clone_manager() -> CloneManager:
+    """Returns the shared CloneManager singleton."""
+    return _clone_manager
