@@ -28,7 +28,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -39,6 +39,7 @@ if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
 from .config import settings  # noqa: E402
+from .dependencies import require_api_key  # noqa: E402
 from .routers import cache, health, repos, scans, sync  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -114,20 +115,26 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     # Routers
     # ------------------------------------------------------------------
+    # All routers except /health require the X-API-Key header when the
+    # API_KEY env var is set. When unset, auth is bypassed (POC dev mode).
+    auth = [Depends(require_api_key)]
     application.include_router(
         scans.router,
         prefix="/api/v1/scans",
         tags=["business-logic"],
+        dependencies=auth,
     )
     application.include_router(
         sync.router,
         prefix="/api/v1/sync",
         tags=["orchestration"],
+        dependencies=auth,
     )
     application.include_router(
         cache.router,
         prefix="/api/v1/cache",
         tags=["workflow-state"],
+        dependencies=auth,
     )
     application.include_router(
         health.router,
@@ -138,6 +145,7 @@ def create_app() -> FastAPI:
         repos.router,
         prefix="/api/v1/repos",
         tags=["business-logic"],
+        dependencies=auth,
     )
 
     # ------------------------------------------------------------------

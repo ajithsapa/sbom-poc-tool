@@ -42,3 +42,29 @@ CLI equivalents: `sbom-tool scan --repo-url <url>`,
 Public repos only — `GIT_TERMINAL_PROMPT=0` and `GIT_ASKPASS=echo` are
 set in the clone subprocess so anything requiring auth fails fast rather
 than hanging the request.
+
+### Hardening: host allowlist + size cap (one branch with the URL feature)
+
+- **Host allowlist**: `repo_url` must point at `github.com` (or
+  `www.github.com`). Anything else returns `422 REPO_HOST_NOT_ALLOWED`.
+  Defined as `_ALLOWED_HOSTS` in `git_cloner.py` — add hosts there.
+- **Size cap**: a successful clone over `SBOM_MAX_CLONE_BYTES`
+  (default 50 MB) is deleted and the request fails with
+  `422 REPO_TOO_LARGE`. The 120s clone timeout is the first line of
+  defense; the size cap catches large repos that finish under the
+  timeout (e.g. monorepos with committed datasets).
+
+## Auth: static API key
+
+When `API_KEY` is set in the environment, every endpoint except
+`/api/v1/health` requires an `X-API-Key` header matching that value.
+401 with `INVALID_API_KEY` otherwise. When `API_KEY` is unset/empty,
+auth is bypassed and a startup warning is logged — **POC dev mode only**.
+
+Implementation: a single `Security(APIKeyHeader(...))` dependency in
+`step11_api/dependencies.py` (`require_api_key`) wired via
+`include_router(..., dependencies=[Depends(require_api_key)])` in
+`main.py`. FastAPI auto-registers the security scheme so Swagger UI
+shows an "Authorize" button and a lock icon on guarded routes.
+
+To rotate the key: change `API_KEY` in the deployment env and restart.

@@ -527,3 +527,121 @@ class TestGitClonerUnit:
         (tmp_path / "syft").mkdir()
         with pytest.raises(GitCloneError, match="already exists"):
             mgr.clone("https://github.com/anchore/syft.git")
+
+    def test_validate_url_rejects_non_github_host(self):
+        from git_cloner import HostNotAllowedError, _validate_url
+        with pytest.raises(HostNotAllowedError, match="github.com"):
+            _validate_url("https://gitlab.com/some-org/some-repo.git")
+
+    def test_validate_url_rejects_github_subdomain(self):
+        from git_cloner import HostNotAllowedError, _validate_url
+        with pytest.raises(HostNotAllowedError):
+            _validate_url("https://raw.githubusercontent.com/x/y/main")
+
+    def test_validate_url_accepts_www_github(self):
+        from git_cloner import _validate_url
+        _validate_url("https://www.github.com/anchore/syft.git")
+
+
+class TestRepoUrlHostAllowlistAPI:
+    """POST /scans must reject non-github URLs with REPO_HOST_NOT_ALLOWED."""
+
+    def test_gitlab_url_returns_422_host_not_allowed(self, client):
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_url": "https://gitlab.com/some-org/some-repo.git",
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["error"] == "REPO_HOST_NOT_ALLOWED"
+
+
+class TestRepoSizeCap:
+    """CloneManager must delete + raise when a clone exceeds the size cap."""
+
+    def test_oversized_clone_raises_and_cleans_up(self, tmp_path, monkeypatch):
+        """
+        Simulate an oversized clone by mocking subprocess.run to drop a
+        fake oversized blob into the target dir, then assert RepoTooLargeError.
+        """
+        import subprocess as _sp
+        from git_cloner import CloneManager, RepoTooLargeError
+
+        mgr = CloneManager(workspace_dir=str(tmp_path), max_bytes=1024)
+
+        def fake_run(cmd, capture_output, text, env, timeout):
+            # cmd[-1] is the target path; create it and stuff a 2 KB file in.
+            target = cmd[-1]
+            os.makedirs(target, exist_ok=True)
+            with open(os.path.join(target, "blob.bin"), "wb") as fh:
+                fh.write(b"x" * 2048)
+
+            class _Result:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return _Result()
+
+        monkeypatch.setattr(_sp, "run", fake_run)
+
+        with pytest.raises(RepoTooLargeError, match="exceeds the configured size cap"):
+            mgr.clone("https://github.com/example/oversized.git")
+
+        # Workspace must be empty after the failure — no orphaned dir left behind.
+        assert not any(tmp_path.iterdir())
+
+
+class TestApiKeyAuth:
+    """X-API-Key enforcement when API_KEY is configured."""
+
+    @pytest.fixture
+    def authed_client(self, monkeypatch):
+        """A separate TestClient with API_KEY set on the settings singleton."""
+        monkeypatch.setenv("API_KEY", "test-secret-key")
+        # Reload settings + reset the warned flag so the dependency re-reads env.
+        from step11_api import config as _cfg
+        from step11_api.dependencies import require_api_key
+        _cfg.settings = _cfg.Settings()
+        if hasattr(require_api_key, "_warned"):
+            delattr(require_api_key, "_warned")
+        from step11_api.main import create_app
+        app = create_app()
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
+
+    def test_health_is_open_without_key(self, authed_client):
+        # /health must work even when auth is configured — used by liveness probes.
+        assert authed_client.get("/api/v1/health").status_code == 200
+
+    def test_scans_requires_key(self, authed_client, temp_repo):
+        response = authed_client.post(
+            "/api/v1/scans",
+            json={"repo_path": temp_repo, "format": "cyclonedx", "env": "development"},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"]["error"] == "INVALID_API_KEY"
+
+    def test_scans_rejects_wrong_key(self, authed_client, temp_repo):
+        response = authed_client.post(
+            "/api/v1/scans",
+            headers={"X-API-Key": "wrong"},
+            json={"repo_path": temp_repo, "format": "cyclonedx", "env": "development"},
+        )
+        assert response.status_code == 401
+
+    def test_scans_accepts_correct_key(self, authed_client, temp_repo):
+        response = authed_client.post(
+            "/api/v1/scans",
+            headers={"X-API-Key": "test-secret-key"},
+            json={"repo_path": temp_repo, "format": "cyclonedx", "env": "development"},
+        )
+        assert response.status_code == 200
+
+    def test_repos_list_requires_key(self, authed_client):
+        assert authed_client.get("/api/v1/repos").status_code == 401
+
+    def test_cache_status_requires_key(self, authed_client):
+        assert authed_client.get("/api/v1/cache/status").status_code == 401

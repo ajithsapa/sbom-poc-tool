@@ -27,11 +27,24 @@ class GitCloneError(Exception):
     """Raised when a clone fails for any reason — invalid URL, network, auth, etc."""
 
 
+class HostNotAllowedError(GitCloneError):
+    """Raised when the URL's host is outside the allowlist (currently github.com only)."""
+
+
+class RepoTooLargeError(GitCloneError):
+    """Raised when a successfully cloned repo exceeds the configured size cap."""
+
+
 _ALLOWED_SCHEMES = {"https", "http", "git"}
+# Host allowlist — public github.com only. Subdomains like gist.github.com or
+# raw.githubusercontent.com are not git endpoints and are not accepted.
+_ALLOWED_HOSTS = {"github.com", "www.github.com"}
 _REPO_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 # Default clone timeout (seconds). Large repos with --depth=1 typically finish
 # in well under 60s; this caps the request to avoid runaway clones.
 _DEFAULT_TIMEOUT_SECONDS = 120
+# Default size cap for a successful clone (bytes). 0 = unlimited.
+_DEFAULT_MAX_BYTES = 50_000_000
 
 
 @dataclass(frozen=True)
@@ -68,6 +81,11 @@ def _validate_url(url: str) -> None:
         raise GitCloneError("repo_url is missing a host")
     if not parsed.path or parsed.path in ("/", ""):
         raise GitCloneError("repo_url is missing a repository path")
+    if parsed.netloc.lower() not in _ALLOWED_HOSTS:
+        raise HostNotAllowedError(
+            f"Only github.com URLs are accepted. Got host '{parsed.netloc}'. "
+            f"Support for additional hosts is on the roadmap."
+        )
 
 
 def repo_name_from_url(url: str) -> str:
@@ -96,6 +114,17 @@ def _dir_size(path: Path) -> int:
     return total
 
 
+def _force_rmtree(target: Path) -> None:
+    """rmtree that survives Windows's read-only files in .git/objects/pack."""
+    def _force_writable(func, path, exc_info):
+        try:
+            os.chmod(path, 0o700)
+            func(path)
+        except Exception:
+            pass
+    shutil.rmtree(target, onerror=_force_writable)
+
+
 class CloneManager:
     """
     Manages the workspace of cloned repos under a single root directory.
@@ -103,10 +132,17 @@ class CloneManager:
     are prevented by checking existence before invoking git.
     """
 
-    def __init__(self, workspace_dir: str, clone_timeout_seconds: int = _DEFAULT_TIMEOUT_SECONDS):
+    def __init__(
+        self,
+        workspace_dir: str,
+        clone_timeout_seconds: int = _DEFAULT_TIMEOUT_SECONDS,
+        max_bytes: int = _DEFAULT_MAX_BYTES,
+    ):
         self.workspace_dir = Path(workspace_dir).resolve()
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
         self.clone_timeout_seconds = clone_timeout_seconds
+        # 0 disables the size cap.
+        self.max_bytes = max_bytes
 
     def _resolve_safe(self, name: str) -> Path:
         """Resolve `name` inside the workspace, refusing path traversal."""
@@ -201,17 +237,33 @@ class CloneManager:
             raise GitCloneError("git executable not found on PATH") from exc
         except subprocess.TimeoutExpired as exc:
             # Best-effort cleanup of any partial clone.
-            shutil.rmtree(target, ignore_errors=True)
+            if target.exists():
+                _force_rmtree(target)
             raise GitCloneError(
                 f"git clone timed out after {self.clone_timeout_seconds}s"
             ) from exc
 
         if proc.returncode != 0:
-            shutil.rmtree(target, ignore_errors=True)
+            if target.exists():
+                _force_rmtree(target)
             stderr = (proc.stderr or "").strip().splitlines()
             # Surface the last meaningful stderr line; skip generic progress noise.
             last = stderr[-1] if stderr else "git clone failed"
             raise GitCloneError(f"git clone failed: {last}")
+
+        # Enforce size cap. Clone is on disk by this point; measure, then
+        # delete + raise if oversized so we never leave bloat behind.
+        if self.max_bytes and self.max_bytes > 0:
+            size = _dir_size(target)
+            if size > self.max_bytes:
+                _force_rmtree(target)
+                raise RepoTooLargeError(
+                    f"Cloned repo is {size:,} bytes, which exceeds the configured "
+                    f"size cap of {self.max_bytes:,} bytes. The clone has been deleted. "
+                    f"This limit exists to keep scan workspaces small — large "
+                    f"datasets/models in the repo will push it over the cap even "
+                    f"though Syft only needs dependency manifests."
+                )
 
         cloned_at = datetime.now(timezone.utc).isoformat()
         try:
@@ -236,12 +288,4 @@ class CloneManager:
         target = self._resolve_safe(name)
         if not target.is_dir():
             raise GitCloneError(f"No clone named {name!r}")
-        # On Windows, git creates read-only files inside .git/objects/pack;
-        # plain rmtree fails with PermissionError. Use an onerror handler.
-        def _force_writable(func, path, exc_info):
-            try:
-                os.chmod(path, 0o700)
-                func(path)
-            except Exception:
-                raise
-        shutil.rmtree(target, onerror=_force_writable)
+        _force_rmtree(target)

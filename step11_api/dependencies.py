@@ -12,11 +12,15 @@ Generated: Step 11 — FastAPI API Generation
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, Optional
+
+from fastapi import HTTPException, Security
+from fastapi.security import APIKeyHeader
 
 # ---------------------------------------------------------------------------
 # Ensure session root is on sys.path so step6/step9 can be imported as plain
@@ -126,6 +130,7 @@ def _make_clone_manager() -> CloneManager:
     return CloneManager(
         workspace_dir=workspace,
         clone_timeout_seconds=settings.SBOM_CLONE_TIMEOUT_SECONDS,
+        max_bytes=settings.SBOM_MAX_CLONE_BYTES,
     )
 
 
@@ -220,3 +225,51 @@ def get_scan_store() -> Dict[str, Any]:
 def get_clone_manager() -> CloneManager:
     """Returns the shared CloneManager singleton."""
     return _clone_manager
+
+
+# ---------------------------------------------------------------------------
+# API-key authentication
+# ---------------------------------------------------------------------------
+
+# Registered as a security scheme so FastAPI shows the "Authorize" button in
+# Swagger and the lock icon on guarded routes. auto_error=False lets us
+# implement the env-gated bypass (POC dev mode when API_KEY is unset).
+_api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    description=(
+        "Static shared API key. When the server is configured with an API_KEY "
+        "env var, every endpoint except /health requires this header to match."
+    ),
+)
+
+_auth_logger = logging.getLogger(__name__)
+
+
+def require_api_key(provided_key: Optional[str] = Security(_api_key_header)) -> None:
+    """
+    FastAPI dependency: enforce X-API-Key header against settings.API_KEY.
+
+    If API_KEY is unset/empty, auth is bypassed (POC dev mode) — a warning is
+    emitted at first bypass so this isn't silently insecure in production.
+    """
+    from step11_api.config import settings
+
+    expected = (settings.API_KEY or "").strip()
+    if not expected:
+        if not getattr(require_api_key, "_warned", False):
+            _auth_logger.warning(
+                "API_KEY is not set — all endpoints are unauthenticated. "
+                "Set API_KEY in the environment to require X-API-Key."
+            )
+            require_api_key._warned = True  # type: ignore[attr-defined]
+        return
+
+    if not provided_key or provided_key != expected:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "INVALID_API_KEY",
+                "message": "Missing or invalid X-API-Key header.",
+            },
+        )

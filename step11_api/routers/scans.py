@@ -30,7 +30,12 @@ _SESSION_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
-from git_cloner import CloneManager, GitCloneError  # noqa: E402
+from git_cloner import (  # noqa: E402
+    CloneManager,
+    GitCloneError,
+    HostNotAllowedError,
+    RepoTooLargeError,
+)
 from oss_tool_runner import OSSToolRunner, OSSToolRunnerError  # noqa: E402
 from step6_tdd_green_phase import NVDSyncError  # noqa: E402
 from step7_5_pydantic_models import (  # noqa: E402
@@ -228,6 +233,24 @@ async def create_scan(
     if request.repo_url:
         try:
             cloned = clone_manager.clone(request.repo_url)
+        except HostNotAllowedError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_HOST_NOT_ALLOWED",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except RepoTooLargeError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_TOO_LARGE",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
         except GitCloneError as exc:
             msg = str(exc)
             status = 409 if "already exists" in msg else 422

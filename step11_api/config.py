@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     NVD_CACHE_DB_PATH: str = ":memory:"
 
     # ------------------------------------------------------------------
+    # API authentication (static shared key)
+    # ------------------------------------------------------------------
+    # When set, every endpoint except /api/v1/health requires the
+    # `X-API-Key` header to match. When unset/empty, auth is bypassed —
+    # intended for local dev only. A warning is logged at startup if unset.
+    API_KEY: str = ""
+
+    # ------------------------------------------------------------------
     # Git clone workspace
     # ------------------------------------------------------------------
     # Directory under which public-repo clones are stored (one subdir per repo).
@@ -69,6 +77,10 @@ class Settings(BaseSettings):
     SBOM_CLONES_DIR: str = ""
     # Hard timeout for `git clone --depth=1`, in seconds.
     SBOM_CLONE_TIMEOUT_SECONDS: int = 120
+    # Maximum on-disk size of a clone (bytes). Clones exceeding this are
+    # deleted and the request fails with REPO_TOO_LARGE. Default: 50 MB —
+    # ample for dependency manifests, blocks accidental dataset/model repos.
+    SBOM_MAX_CLONE_BYTES: int = 50_000_000
 
     @field_validator("LOG_LEVEL")
     @classmethod
