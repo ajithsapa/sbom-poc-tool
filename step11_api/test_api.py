@@ -645,3 +645,151 @@ class TestApiKeyAuth:
 
     def test_cache_status_requires_key(self, authed_client):
         assert authed_client.get("/api/v1/cache/status").status_code == 401
+
+
+class TestManifestDetection:
+    """Unit tests for the Python/JS-only language gate."""
+
+    def test_supported_python_manifest_only(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "requirements.txt").write_text("requests==2.31.0\n")
+        supported, foreign = detect_manifests(str(tmp_path))
+        assert "requirements.txt" in supported
+        assert foreign == []
+
+    def test_supported_javascript_manifest_only(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "package.json").write_text('{"name": "x"}')
+        supported, foreign = detect_manifests(str(tmp_path))
+        assert "package.json" in supported
+        assert foreign == []
+
+    def test_requirements_glob_matches_dev_variants(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "requirements-dev.txt").write_text("")
+        (tmp_path / "requirements-test.txt").write_text("")
+        supported, foreign = detect_manifests(str(tmp_path))
+        assert any("requirements-dev.txt" in s for s in supported)
+        assert any("requirements-test.txt" in s for s in supported)
+
+    def test_foreign_go_manifest_detected(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "go.mod").write_text("module x\n")
+        _, foreign = detect_manifests(str(tmp_path))
+        assert "go.mod" in foreign
+
+    def test_foreign_rust_manifest_detected(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "Cargo.toml").write_text("[package]\n")
+        _, foreign = detect_manifests(str(tmp_path))
+        assert "Cargo.toml" in foreign
+
+    def test_foreign_dotnet_csproj_detected(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "MyApp.csproj").write_text("<Project/>")
+        _, foreign = detect_manifests(str(tmp_path))
+        assert any(p.endswith(".csproj") for p in foreign)
+
+    def test_skip_dirs_are_ignored(self, tmp_path):
+        from git_cloner import detect_manifests
+        # A node_modules/Cargo.toml must not register as a foreign manifest.
+        nm = tmp_path / "node_modules" / "some-pkg"
+        nm.mkdir(parents=True)
+        (nm / "Cargo.toml").write_text("")
+        (tmp_path / "package.json").write_text("{}")
+        supported, foreign = detect_manifests(str(tmp_path))
+        assert foreign == []
+        assert any("package.json" in s for s in supported)
+
+    def test_mixed_repo_reports_both(self, tmp_path):
+        from git_cloner import detect_manifests
+        (tmp_path / "pyproject.toml").write_text("")
+        (tmp_path / "go.mod").write_text("")
+        supported, foreign = detect_manifests(str(tmp_path))
+        assert "pyproject.toml" in supported
+        assert "go.mod" in foreign
+
+
+class TestRepoPathLanguageGateAPI:
+    """POST /scans with a repo_path must enforce the language gate."""
+
+    def test_unsupported_language_returns_422(self, client, tmp_path_factory):
+        repo = tmp_path_factory.mktemp("empty_repo")
+        # Drop a README so the dir isn't empty (still no manifest).
+        (repo / "README.md").write_text("hello")
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_path": str(repo),
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        assert response.status_code == 422
+        assert response.json()["error"] == "REPO_UNSUPPORTED_LANGUAGE"
+
+    def test_foreign_manifest_returns_422(self, client, tmp_path_factory):
+        repo = tmp_path_factory.mktemp("mixed_repo")
+        # Python manifest is present, but so is go.mod -> strict mode rejects.
+        (repo / "requirements.txt").write_text("requests==2.31.0\n")
+        (repo / "go.mod").write_text("module x\n")
+        response = client.post(
+            "/api/v1/scans",
+            json={
+                "repo_path": str(repo),
+                "format": "cyclonedx",
+                "env": "development",
+            },
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["error"] == "REPO_FOREIGN_MANIFEST"
+        assert "go.mod" in body.get("details", {}).get("foreign_manifests", [])
+
+
+class TestCloneManagerLanguageGate:
+    """CloneManager.clone() must reject + delete when language gate fails."""
+
+    def _stub_clone(self, monkeypatch, layout_fn):
+        """Replace subprocess.run with a fake that populates the clone target."""
+        import subprocess as _sp
+
+        def fake_run(cmd, capture_output, text, env, timeout):
+            target = cmd[-1]
+            os.makedirs(target, exist_ok=True)
+            layout_fn(target)
+
+            class _R:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return _R()
+        monkeypatch.setattr(_sp, "run", fake_run)
+
+    def test_clone_rejects_repo_with_no_manifest(self, tmp_path, monkeypatch):
+        from git_cloner import CloneManager, UnsupportedLanguageError
+
+        def layout(target):
+            with open(os.path.join(target, "README.md"), "w") as fh:
+                fh.write("hello")
+
+        self._stub_clone(monkeypatch, layout)
+        mgr = CloneManager(workspace_dir=str(tmp_path), max_bytes=0)
+        with pytest.raises(UnsupportedLanguageError):
+            mgr.clone("https://github.com/example/no-manifest.git")
+        assert not any(tmp_path.iterdir()), "clone must be cleaned up after rejection"
+
+    def test_clone_rejects_repo_with_foreign_manifest(self, tmp_path, monkeypatch):
+        from git_cloner import CloneManager, ForeignManifestError
+
+        def layout(target):
+            with open(os.path.join(target, "requirements.txt"), "w") as fh:
+                fh.write("requests==2.31.0\n")
+            with open(os.path.join(target, "go.mod"), "w") as fh:
+                fh.write("module x\n")
+
+        self._stub_clone(monkeypatch, layout)
+        mgr = CloneManager(workspace_dir=str(tmp_path), max_bytes=0)
+        with pytest.raises(ForeignManifestError, match="go.mod"):
+            mgr.clone("https://github.com/example/mixed.git")
+        assert not any(tmp_path.iterdir())

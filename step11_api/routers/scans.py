@@ -32,9 +32,12 @@ if _SESSION_ROOT not in sys.path:
 
 from git_cloner import (  # noqa: E402
     CloneManager,
+    ForeignManifestError,
     GitCloneError,
     HostNotAllowedError,
     RepoTooLargeError,
+    UnsupportedLanguageError,
+    detect_manifests,
 )
 from oss_tool_runner import OSSToolRunner, OSSToolRunnerError  # noqa: E402
 from step6_tdd_green_phase import NVDSyncError  # noqa: E402
@@ -251,6 +254,24 @@ async def create_scan(
                     details={"repo_url": request.repo_url},
                 ).model_dump(),
             )
+        except ForeignManifestError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_FOREIGN_MANIFEST",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except UnsupportedLanguageError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_UNSUPPORTED_LANGUAGE",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
         except GitCloneError as exc:
             msg = str(exc)
             status = 409 if "already exists" in msg else 422
@@ -275,6 +296,41 @@ async def create_scan(
             content=ErrorResponse(
                 error="INVALID_REPO_PATH",
                 message=f"Repository path does not exist or is not a directory: {scan_target_path}",
+                details={"repo_path": scan_target_path},
+            ).model_dump(),
+        )
+
+    # Language gate. Applied here so that scans via `repo_path` are checked
+    # identically to clones via `repo_url` (the clone path already validated
+    # inside CloneManager.clone() but a second check is idempotent and keeps
+    # the contract uniform for any future clone-bypass code path).
+    supported, foreign = detect_manifests(scan_target_path)
+    if foreign:
+        sample = ", ".join(sorted(set(foreign))[:5])
+        more = f" (and {len(set(foreign)) - 5} more)" if len(set(foreign)) > 5 else ""
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="REPO_FOREIGN_MANIFEST",
+                message=(
+                    f"Repository contains dependency manifests for ecosystems "
+                    f"this tool does not support: {sample}{more}. Only Python "
+                    f"and JavaScript / TypeScript repos are scannable in this phase."
+                ),
+                details={"repo_path": scan_target_path, "foreign_manifests": sorted(set(foreign))},
+            ).model_dump(),
+        )
+    if not supported:
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="REPO_UNSUPPORTED_LANGUAGE",
+                message=(
+                    "No Python or JavaScript / TypeScript dependency manifest "
+                    "was found in the repository. Looked for: requirements*.txt, "
+                    "setup.py, setup.cfg, pyproject.toml, Pipfile, poetry.lock, "
+                    "package.json, package-lock.json, yarn.lock, pnpm-lock.yaml."
+                ),
                 details={"repo_path": scan_target_path},
             ).model_dump(),
         )

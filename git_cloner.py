@@ -35,6 +35,115 @@ class RepoTooLargeError(GitCloneError):
     """Raised when a successfully cloned repo exceeds the configured size cap."""
 
 
+class UnsupportedLanguageError(GitCloneError):
+    """Raised when a cloned repo has no Python or JavaScript dependency manifest."""
+
+
+class ForeignManifestError(GitCloneError):
+    """Raised when a cloned repo contains dependency manifests for ecosystems
+    this tool does not support (Go, Rust, Java, Ruby, PHP, .NET, etc.)."""
+
+
+# ---------------------------------------------------------------------------
+# Manifest detection — Python and JavaScript/TypeScript only.
+#
+# Supported manifests: what Syft can catalog and what this tool maps against
+# the NVD cache. Foreign manifests: indicate an ecosystem we cannot scan;
+# their presence triggers rejection per the strict-mode policy.
+# ---------------------------------------------------------------------------
+
+# Filenames matched verbatim (case-sensitive on POSIX, case-insensitive lookup
+# below). Wildcards handled separately.
+_SUPPORTED_MANIFESTS_EXACT = {
+    # Python
+    "setup.py", "setup.cfg", "pyproject.toml",
+    "Pipfile", "Pipfile.lock", "poetry.lock",
+    # JavaScript / TypeScript
+    "package.json", "package-lock.json", "yarn.lock",
+    "pnpm-lock.yaml", "npm-shrinkwrap.json",
+}
+
+_FOREIGN_MANIFESTS_EXACT = {
+    # Go
+    "go.mod", "go.sum",
+    # Rust
+    "Cargo.toml", "Cargo.lock",
+    # Java / Kotlin / Scala
+    "pom.xml", "build.gradle", "build.gradle.kts",
+    "settings.gradle", "settings.gradle.kts",
+    "ivy.xml", "build.sbt",
+    # Ruby
+    "Gemfile", "Gemfile.lock",
+    # PHP
+    "composer.json", "composer.lock",
+    # .NET (file extensions handled below)
+    "packages.config",
+    # Swift / Objective-C
+    "Package.swift", "Package.resolved", "Podfile", "Podfile.lock", "Cartfile", "Cartfile.resolved",
+    # Elixir
+    "mix.exs", "mix.lock",
+    # C / C++
+    "CMakeLists.txt", "conanfile.txt", "vcpkg.json", "meson.build",
+    # Dart / Flutter
+    "pubspec.yaml", "pubspec.lock",
+    # Haskell
+    "cabal.project", "stack.yaml",
+}
+
+# Suffixes that flag a foreign ecosystem regardless of basename.
+_FOREIGN_MANIFEST_SUFFIXES = (
+    ".csproj", ".vbproj", ".fsproj", ".sln",
+    ".gemspec",
+)
+
+# Directories skipped during the walk — large, generated, or vendored content
+# that shouldn't influence ecosystem detection.
+_WALK_SKIP_DIRS = {
+    ".git", ".hg", ".svn",
+    "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache",
+    "dist", "build", "target", "out",
+    "venv", ".venv", "env", ".env",
+    ".tox", ".nox",
+    "bin", "obj",
+    "vendor",  # Go/PHP vendoring
+}
+
+
+def detect_manifests(repo_path: str) -> "tuple[list[str], list[str]]":
+    """
+    Walk `repo_path` and return (supported_paths, foreign_paths) lists of
+    manifest files, relative to repo_path. Skips common vendored / generated
+    directories. Matches `requirements*.txt` (Python) as a glob.
+    """
+    repo = Path(repo_path)
+    supported: list[str] = []
+    foreign: list[str] = []
+    if not repo.is_dir():
+        return supported, foreign
+
+    for root, dirs, files in os.walk(repo):
+        # Prune skipped dirs in-place so os.walk doesn't descend into them.
+        dirs[:] = [d for d in dirs if d not in _WALK_SKIP_DIRS]
+        for name in files:
+            rel = os.path.relpath(os.path.join(root, name), repo)
+            if name in _SUPPORTED_MANIFESTS_EXACT:
+                supported.append(rel)
+                continue
+            # requirements*.txt (requirements.txt, requirements-dev.txt, etc.)
+            if name.startswith("requirements") and name.endswith(".txt"):
+                supported.append(rel)
+                continue
+            if name in _FOREIGN_MANIFESTS_EXACT:
+                foreign.append(rel)
+                continue
+            lower = name.lower()
+            for suffix in _FOREIGN_MANIFEST_SUFFIXES:
+                if lower.endswith(suffix):
+                    foreign.append(rel)
+                    break
+    return supported, foreign
+
+
 _ALLOWED_SCHEMES = {"https", "http", "git"}
 # Host allowlist — public github.com only. Subdomains like gist.github.com or
 # raw.githubusercontent.com are not git endpoints and are not accepted.
@@ -251,6 +360,32 @@ class CloneManager:
                     f"datasets/models in the repo will push it over the cap even "
                     f"though Syft only needs dependency manifests."
                 )
+
+        # Language gate: this tool only scans Python and JavaScript/TypeScript.
+        # Reject foreign-ecosystem manifests outright (strict mode); reject if
+        # no supported manifest is present at all. Either case deletes the
+        # clone so the workspace stays clean.
+        supported, foreign = detect_manifests(str(target))
+        if foreign:
+            shutil.rmtree(target)
+            sample = ", ".join(sorted(set(foreign))[:5])
+            more = f" (and {len(set(foreign)) - 5} more)" if len(set(foreign)) > 5 else ""
+            raise ForeignManifestError(
+                f"Repository contains dependency manifests for ecosystems this "
+                f"tool does not support: {sample}{more}. Only Python and "
+                f"JavaScript / TypeScript repos are scannable in this phase. "
+                f"The clone has been deleted."
+            )
+        if not supported:
+            shutil.rmtree(target)
+            raise UnsupportedLanguageError(
+                f"No Python or JavaScript / TypeScript dependency manifest was "
+                f"found in the repository. Looked for: requirements*.txt, "
+                f"setup.py, setup.cfg, pyproject.toml, Pipfile, poetry.lock, "
+                f"package.json, package-lock.json, yarn.lock, pnpm-lock.yaml. "
+                f"Only Python and JavaScript / TypeScript repos are scannable "
+                f"in this phase. The clone has been deleted."
+            )
 
         cloned_at = datetime.now(timezone.utc).isoformat()
         try:

@@ -53,6 +53,24 @@ than hanging the request.
   `422 REPO_TOO_LARGE`. The 120s clone timeout is the first line of
   defense; the size cap catches large repos that finish under the
   timeout (e.g. monorepos with committed datasets).
+- **Language gate (Python + JS/TS only, strict mode)**: after clone,
+  the repo is walked (skipping `.git`, `node_modules`, `__pycache__`,
+  `dist`, `build`, `target`, `venv`, `vendor`, etc.) and classified:
+  - At least one Python or JS manifest must be present
+    (`requirements*.txt`, `setup.py`, `setup.cfg`, `pyproject.toml`,
+    `Pipfile`, `poetry.lock`, `package.json`, `package-lock.json`,
+    `yarn.lock`, `pnpm-lock.yaml`). Otherwise → `422
+    REPO_UNSUPPORTED_LANGUAGE`.
+  - **No foreign manifests** (Go `go.mod`, Rust `Cargo.toml`, Java
+    `pom.xml`/`build.gradle*`, Ruby `Gemfile`, PHP `composer.json`,
+    .NET `*.csproj`/`*.sln`, Swift `Package.swift`/`Podfile`, Dart
+    `pubspec.yaml`, C/C++ `CMakeLists.txt`/`conanfile.txt`, etc.)
+    may be present. Otherwise → `422 REPO_FOREIGN_MANIFEST`.
+  The same gate runs against `repo_path` scans (no clone) in
+  `routers/scans.py` so the contract is identical regardless of how
+  the target was supplied. Lists in `git_cloner.py`:
+  `_SUPPORTED_MANIFESTS_EXACT`, `_FOREIGN_MANIFESTS_EXACT`,
+  `_FOREIGN_MANIFEST_SUFFIXES` — extend there to broaden coverage.
 
 ## Auth: static API key
 
