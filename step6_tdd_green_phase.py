@@ -784,18 +784,56 @@ class CycloneDXSerializer:
       }
     """
 
+    # Map purl ecosystem prefix to the canonical registry/supplier label used
+    # as a fallback when a normalised supplier isn't available on the dep.
+    _PURL_REGISTRY_SUPPLIER = {
+        "pypi": "PyPI",
+        "npm": "npm",
+        "maven": "Maven Central",
+        "golang": "Go modules",
+        "cargo": "crates.io",
+        "gem": "RubyGems",
+        "nuget": "NuGet",
+        "composer": "Packagist",
+        "github": "GitHub",
+        "githubactions": "GitHub",
+        "docker": "Docker Hub",
+        "oci": "OCI registry",
+        "deb": "Debian",
+        "rpm": "Red Hat",
+        "apk": "Alpine",
+        "hex": "Hex",
+        "pub": "pub.dev",
+        "swift": "Swift Package Index",
+        "cocoapods": "CocoaPods",
+        "conan": "Conan Center",
+    }
+
+    @classmethod
+    def _supplier_from_purl(cls, purl: str) -> str:
+        # pkg:<type>/<namespace>/<name>@<version>
+        if not purl or not purl.startswith("pkg:"):
+            return "Unknown"
+        try:
+            ptype = purl.split("pkg:", 1)[1].split("/", 1)[0].lower()
+        except (IndexError, AttributeError):
+            return "Unknown"
+        return cls._PURL_REGISTRY_SUPPLIER.get(ptype, "Unknown")
+
     def serialize(self, scan_result: dict) -> dict:
         serial_number = f"urn:uuid:{uuid.uuid4()}"
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         components = []
         for dep in scan_result.get("dependencies", []):
+            purl = dep.get("purl", "")
+            supplier = dep.get("supplier") or self._supplier_from_purl(purl)
             components.append({
                 "type": dep.get("type", "library"),
                 "name": dep.get("name", ""),
                 "version": dep.get("version", dep.get("exact_version", "")),
-                "purl": dep.get("purl", ""),
-                "supplier": {"name": dep.get("supplier", "PyPI")},
+                "purl": purl,
+                "supplier": {"name": supplier},
             })
 
         vulnerabilities = []
@@ -819,6 +857,19 @@ class CycloneDXSerializer:
                 vuln_entry["recommendation"] = f"Upgrade to {vuln['fixed_version']}"
             vulnerabilities.append(vuln_entry)
 
+        repo_name = scan_result.get("repo_name") or scan_result.get("scan_id") or "unknown"
+        subject_component = {
+            "type": "application",
+            "name": repo_name,
+            "bom-ref": f"root:{repo_name}",
+        }
+        if scan_result.get("scan_id"):
+            subject_component["version"] = str(scan_result["scan_id"])
+        if scan_result.get("repo_url"):
+            subject_component["externalReferences"] = [
+                {"type": "vcs", "url": scan_result["repo_url"]}
+            ]
+
         return {
             "bomFormat": "CycloneDX",
             "specVersion": "1.4",
@@ -833,6 +884,7 @@ class CycloneDXSerializer:
                         "version": "1.0.0",
                     }
                 ],
+                "component": subject_component,
             },
             "components": components,
             "vulnerabilities": vulnerabilities,
