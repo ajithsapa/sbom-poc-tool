@@ -1,0 +1,76 @@
+{
+    "timestamp": "2026-05-12T20:19:06Z",
+    "enhancement": {
+        "name": "ecosystem_aware_vuln_matching",
+        "directory": "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching",
+        "parent_session": "SBOM-20260409-sb01"
+    },
+    "available_parent_files": [
+        "cli.py",
+        "create_nvd_cache_db.py",
+        "oss_tool_runner.py",
+        "step4_atdd_business.py",
+        "step5_tdd_red_phase_batch1.py",
+        "step5_tdd_red_phase_batch2.py",
+        "step5_tdd_red_phase.py",
+        "step6_tdd_green_phase.py",
+        "step7_5_pydantic_models.py",
+        "step7_atdd_orchestration.py",
+        "step8_tdd_red_phase_orchestration_tests.py",
+        "step9_tdd_green_phase_orchestration.py",
+        "enhancement_readiness.json",
+        "handoff_to_step2.json",
+        "sample_nvd_feed.json",
+        "sample_output_cyclonedx.json",
+        "sample_output_spdx.json",
+        "session_metadata.json",
+        "step1_extraction_ledger.json",
+        "step1_gap_report.json",
+        "step1_requirements.json",
+        "step1_source_doc_manifest.json",
+        "step1b_mock_entities.json",
+        "step1b_mock_scenarios.json",
+        "step2_bdd_scenarios.metadata.json",
+        "step7_5_api_contract.json",
+        "step7_5_contract_metadata.json",
+        "step7_5_critic_report.json",
+        "step7_critic_report.json",
+        "step7_database_context.json",
+        "step7_handoff_to_red2.json",
+        "step7_orchestration_analysis.json",
+        "step7_validation_criteria.json",
+        "step8_handoff_to_green2.json",
+        "step8_orchestration_tests_metadata.json",
+        "step2_bdd_scenarios.feature"
+    ],
+    "parent_components": {
+        "business": [""],
+        "orchestration": ["ScanWorkflowState","NVDSyncWorkflowState","ScanResult","SyncResult","WorkflowStateMachine","NVDWorkflowStateMachine","ScanOrchestrator","NVDSyncOrchestrator","CLIOrchestrator"]
+    },
+    "integration_strategy": {
+        "approach": "dual_track",
+        "business_integration": {
+            "source": "step6_tdd_green_phase_business.py",
+            "pattern": "extension_or_composition",
+            "description": "Enhancement will extend or compose with existing business logic"
+        },
+        "orchestration_integration": {
+            "source": "step9_tdd_green_phase_orchestration.py", 
+            "pattern": "wrapper_or_mixin",
+            "description": "Enhancement will wrap or mix into existing orchestration"
+        }
+    },
+    "context_loading": {
+        "import_helper": "import_parent.py",
+        "context_loader": "load_context.py",
+        "usage": "from import_parent import get_parent_component, load_parent_requirements"
+    },
+    "next_steps": [
+        "Run Step 1 to define enhancement requirements",
+        "Requirements will be saved to step1_requirements.json",
+        "Context loader will automatically pick up requirements",
+        "Mock data will extend parent session mock data",
+        "BDD scenarios will reference parent components",
+        "Follow dual ATDD-TDD cycle for implementation"
+    ]
+}

@@ -1,0 +1,522 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "domain": "Developer Tooling \u2014 Software Supply Chain Security",
+    "scenario_count": 9,
+    "categories": [
+      "happy_path",
+      "regression",
+      "edge_case",
+      "error_path",
+      "integration"
+    ],
+    "generated_at": "2026-05-12T00:00:00Z",
+    "source_agent": "step1b-agent-mockdata",
+    "is_enhancement": true,
+    "bdd_focus_alignment": [
+      "PURL-type dispatch routes each dependency to the correct backend",
+      "OSV.dev fixture-driven vulnerability lookup for npm/golang/cargo/composer/hex/pub/swift",
+      "GHSA fixture-driven vulnerability lookup for pkg:github/* PURLs",
+      "Preserve PyPI NVD path \u2014 backward compatibility with parent session tests",
+      "Strip fabricated CPEs from CycloneDX/SPDX output for non-NVD-indexed ecosystems",
+      "Cache sync required before lookup (actionable error)",
+      "Unknown PURL types apply fallback behaviour (skip with warning, no fabricated lookup)",
+      "Determinism \u2014 same inputs always produce identical outputs"
+    ],
+    "capability_id_glossary": {
+      "CAP-DISPATCH": "PURL-type-based dispatch routing each dependency to the correct vulnerability backend",
+      "CAP-OSV": "OSV.dev fixture-driven vulnerability lookup",
+      "CAP-GHSA": "GHSA fixture-driven vulnerability lookup",
+      "CAP-NVD-PRESERVED": "Backward-compatible NVD cache lookup for NVD-indexed ecosystems",
+      "CAP-CPE-SANITIZE": "CPE sanitization in CycloneDX/SPDX serializers",
+      "CAP-CACHE-PATTERN": "Cache pattern parity with parent NVDCacheManager (sync + in-memory dict)",
+      "CAP-O1-DISPATCH": "Deterministic dispatch overhead at O(1) per dep via dict lookup"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "scenario_enh_001",
+      "name": "Mixed ecosystem scan \u2014 all three backends hit, dispatch counts correct, 5 vulnerabilities found",
+      "category": "happy_path",
+      "description": "Feed mixed_repo_deps (2 PyPI deps, 3 OSV deps spanning npm+golang, 1 GitHub Action) through EcosystemVulnerabilityMapper.map_vulnerabilities. Verifies that dispatch routes each dep to the correct backend, that all three caches contribute hits, and that the merged result contains exactly 5 vulnerability records. Note: the lodash@4.17.20 dep is the BOUNDARY (fixed) version \u2014 it is correctly dispatched to OSV but returns no match.",
+      "relates_to_requirement": [
+        "CAP-DISPATCH",
+        "CAP-OSV",
+        "CAP-GHSA",
+        "CAP-NVD-PRESERVED"
+      ],
+      "preconditions": {
+        "nvd_cache_synced": true,
+        "osv_cache_synced": true,
+        "ghsa_cache_synced": true,
+        "nvd_cache_entries_loaded_from": "parent step1b_mock_entities.json NVDCache.seed_records",
+        "osv_cache_entries_loaded_from": "enhancement step1b_mock_entities.json OSVVulnerabilityRecord[]",
+        "ghsa_cache_entries_loaded_from": "enhancement step1b_mock_entities.json GHSAVulnerabilityRecord[]"
+      },
+      "input": {
+        "deps_fixture_ref": "mixed_repo_deps",
+        "mapper_invocation": "EcosystemVulnerabilityMapper(nvd_cache, osv_cache, ghsa_cache, dispatch_table).map_vulnerabilities(mixed_repo_deps.deps)"
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "dispatch_counts": {
+          "nvd": 2,
+          "osv": 2,
+          "ghsa": 1,
+          "skipped": 0
+        },
+        "vulnerability_count": 5,
+        "vulnerabilities": [
+          {
+            "cve_or_advisory_id": "CVE-2023-34540",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "backend": "nvd",
+            "severity": "High"
+          },
+          {
+            "cve_or_advisory_id": "CVE-2022-21797",
+            "purl": "pkg:pypi/joblib@0.14.1",
+            "backend": "nvd",
+            "severity": "High"
+          },
+          {
+            "cve_or_advisory_id": "GHSA-xvch-5gv4-984h",
+            "purl": "pkg:npm/minimist@1.2.5",
+            "backend": "osv",
+            "severity": "MEDIUM"
+          },
+          {
+            "cve_or_advisory_id": "GHSA-vvpx-j8f3-3w6h",
+            "purl": "pkg:golang/golang.org/x/net@0.0.0-20190813141303-74dc4d7220e7",
+            "backend": "osv",
+            "severity": "HIGH"
+          },
+          {
+            "cve_or_advisory_id": "GHSA-mrrh-fwg8-r2c3",
+            "purl": "pkg:github/tj-actions/changed-files@v35",
+            "backend": "ghsa",
+            "severity": "HIGH"
+          }
+        ],
+        "no_lodash_match_at_fixed_version": true,
+        "_dispatch_counts_note": "These are result-record counts by source. Lodash@4.17.20 IS dispatched to OSV but yields no record (boundary fixed version). For dispatch event counts use scenario assertions section."
+      },
+      "assertions": [
+        "Mapper returns a list of length 5",
+        "Each vuln record carries a 'backend' tag indicating which cache produced it",
+        "Counts of records per backend match dispatch_counts exactly",
+        "lodash@4.17.20 is dispatched to OSV (verified via mock spy or counter) but produces no record because 4.17.20 is the fixed version",
+        "No NVD cache lookups were attempted for any pkg:npm/*, pkg:golang/*, or pkg:github/* PURL"
+      ]
+    },
+    {
+      "id": "scenario_enh_002",
+      "name": "PyPI-only regression \u2014 parent NVD path unchanged, zero OSV/GHSA lookups attempted",
+      "category": "regression",
+      "description": "Backward-compatibility guard. Feed pypi_only_deps (a pure PyPI subset of the parent TaskMatrix scan) through the enhanced mapper. The output must match the parent VulnerabilityMapper's output for the same deps, byte-for-byte where possible, and ZERO calls must be made to OSV or GHSA caches.",
+      "relates_to_requirement": [
+        "CAP-NVD-PRESERVED",
+        "CAP-DISPATCH"
+      ],
+      "preconditions": {
+        "nvd_cache_synced": true,
+        "osv_cache_synced": true,
+        "ghsa_cache_synced": true
+      },
+      "input": {
+        "deps_fixture_ref": "pypi_only_deps",
+        "mapper_invocation": "EcosystemVulnerabilityMapper(nvd_cache, osv_cache, ghsa_cache, dispatch_table).map_vulnerabilities(pypi_only_deps.deps)"
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "dispatch_counts": {
+          "nvd": 3,
+          "osv": 0,
+          "ghsa": 0,
+          "skipped": 0
+        },
+        "vulnerability_count": 3,
+        "vulnerabilities": [
+          {
+            "cve_or_advisory_id": "CVE-2023-34540",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "backend": "nvd",
+            "severity": "High"
+          },
+          {
+            "cve_or_advisory_id": "CVE-2023-32681",
+            "purl": "pkg:pypi/requests@2.27.1",
+            "backend": "nvd",
+            "severity": "Medium"
+          },
+          {
+            "cve_or_advisory_id": "CVE-2018-19787",
+            "purl": "pkg:pypi/lxml@4.6.3",
+            "backend": "nvd",
+            "severity": "Medium"
+          }
+        ],
+        "osv_cache_lookup_call_count": 0,
+        "ghsa_cache_lookup_call_count": 0,
+        "_dispatch_counts_note": "These are result-record counts. 5 PyPI deps are dispatched to NVD, but only 3 (langchain, requests, lxml) have NVD entries. openai@0.27.2 and pydantic@1.10.4 are clean."
+      },
+      "assertions": [
+        "Output vulnerability set equals the parent VulnerabilityMapper output for the same deps",
+        "OSVCache.lookup spy was called zero times",
+        "GHSACache.lookup spy was called zero times",
+        "Parent session test command (pytest -k 'pypi or nvd') still passes against the integrated build"
+      ]
+    },
+    {
+      "id": "scenario_enh_003",
+      "name": "GitHub Actions only \u2014 GHSA dispatch path and CPE field absent from emitted SBOM",
+      "category": "happy_path",
+      "description": "Feed github_actions_only_deps through the enhanced mapper AND the CPE-sanitizing CycloneDXSerializer. Verifies that all three deps are dispatched to GHSA, that all three produce vulnerability records, and that the resulting CycloneDX components contain ZERO cpe strings (the fabricated Syft-emitted CPEs are stripped at serialization time).",
+      "relates_to_requirement": [
+        "CAP-GHSA",
+        "CAP-CPE-SANITIZE",
+        "CAP-DISPATCH"
+      ],
+      "preconditions": {
+        "ghsa_cache_synced": true,
+        "components_include_fabricated_cpes": true,
+        "serializer": "CPESanitizingCycloneDXSerializer (wraps parent CycloneDXSerializer)"
+      },
+      "input": {
+        "deps_fixture_ref": "github_actions_only_deps",
+        "components_for_serialization": [
+          {
+            "name": "tj-actions/changed-files",
+            "version": "v35",
+            "purl": "pkg:github/tj-actions/changed-files@v35",
+            "cpe": "cpe:2.3:a:tj-actions\\/changed-files:tj-actions\\/changed-files:v35:*:*:*:*:*:*:*",
+            "type": "library"
+          },
+          {
+            "name": "actions/checkout",
+            "version": "v3",
+            "purl": "pkg:github/actions/checkout@v3",
+            "cpe": "cpe:2.3:a:actions\\/checkout:actions\\/checkout:v3:*:*:*:*:*:*:*",
+            "type": "library"
+          },
+          {
+            "name": "docker/build-push-action",
+            "version": "v3",
+            "purl": "pkg:github/docker/build-push-action@v3",
+            "cpe": "cpe:2.3:a:docker\\/build-push-action:docker\\/build-push-action:v3:*:*:*:*:*:*:*",
+            "type": "library"
+          }
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "dispatch_counts": {
+          "nvd": 0,
+          "osv": 0,
+          "ghsa": 3,
+          "skipped": 0
+        },
+        "vulnerability_count": 3,
+        "cyclonedx_components_cpe_count": 0,
+        "cyclonedx_components_purl_count": 3,
+        "vulnerabilities": [
+          {
+            "cve_or_advisory_id": "GHSA-mrrh-fwg8-r2c3",
+            "purl": "pkg:github/tj-actions/changed-files@v35",
+            "backend": "ghsa"
+          },
+          {
+            "cve_or_advisory_id": "GHSA-cqwx-pfm5-2vjp",
+            "purl": "pkg:github/actions/checkout@v3",
+            "backend": "ghsa"
+          },
+          {
+            "cve_or_advisory_id": "GHSA-2j7w-8c5m-r3hf",
+            "purl": "pkg:github/docker/build-push-action@v3",
+            "backend": "ghsa"
+          }
+        ]
+      },
+      "assertions": [
+        "Emitted CycloneDX document contains exactly 3 components",
+        "No component has a 'cpe' key (json.dumps of components contains no 'cpe' field)",
+        "Every component retains its 'purl' key unchanged",
+        "All 3 GHSA advisories are present in the vulnerabilities array of the emitted document"
+      ]
+    },
+    {
+      "id": "scenario_enh_004",
+      "name": "Unknown PURL type \u2014 fallback applies, scan does not error, warning logged",
+      "category": "edge_case",
+      "description": "Feed a dep with an unknown PURL type (pkg:unknownftype/foo@1.0) through the mapper. The dispatch table has no entry for 'unknownftype'. Per fallback_behaviour=skip_with_log_warning, the mapper must return an empty vulnerability list for that dep, log a structured warning indicating the skipped purl type, and NOT crash the scan.",
+      "relates_to_requirement": [
+        "CAP-DISPATCH"
+      ],
+      "preconditions": {
+        "dispatch_table_fallback": "skip_with_log_warning"
+      },
+      "input": {
+        "deps": [
+          {
+            "name": "foo",
+            "exact_version": "1.0",
+            "dependency_type": "direct",
+            "purl": "pkg:unknownftype/foo@1.0",
+            "ecosystem": "unknownftype"
+          }
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "dispatch_counts": {
+          "nvd": 0,
+          "osv": 0,
+          "ghsa": 0,
+          "skipped": 1
+        },
+        "vulnerability_count": 0,
+        "log_warnings": [
+          {
+            "level": "WARNING",
+            "code": "dispatch.unknown_purl_type",
+            "message": "Skipped vulnerability lookup for unknown PURL type 'unknownftype' on dep foo@1.0",
+            "purl": "pkg:unknownftype/foo@1.0"
+          }
+        ]
+      },
+      "assertions": [
+        "Mapper returns an empty list of vulnerabilities for this dep",
+        "Exactly one warning is logged with code 'dispatch.unknown_purl_type'",
+        "No call is made to NVDCacheManager.lookup, OSVCache.lookup, or GHSACache.lookup",
+        "Mapper does not raise"
+      ]
+    },
+    {
+      "id": "scenario_enh_005",
+      "name": "Empty deps list \u2014 mapper returns empty result without errors",
+      "category": "edge_case",
+      "description": "Pass an empty deps list to the mapper. Result must be an empty list. No backend calls. No warnings. No errors. Smoke-test of the empty-input contract.",
+      "relates_to_requirement": [
+        "CAP-DISPATCH"
+      ],
+      "preconditions": {
+        "all_caches_synced": true
+      },
+      "input": {
+        "deps": []
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "dispatch_counts": {
+          "nvd": 0,
+          "osv": 0,
+          "ghsa": 0,
+          "skipped": 0
+        },
+        "vulnerability_count": 0,
+        "log_warnings": []
+      },
+      "assertions": [
+        "Mapper returns []",
+        "No backend lookup is invoked",
+        "No exception raised",
+        "No log line at WARNING or above is emitted"
+      ]
+    },
+    {
+      "id": "scenario_enh_006",
+      "name": "Offline / un-synced OSV cache \u2014 actionable error raised, scan does not silently crash",
+      "category": "error_path",
+      "description": "Construct OSVCache without calling sync() and pass a dep that would route to OSV. The mapper must raise an actionable error from OSVCache.lookup indicating that the cache has not been initialised. The error must be a typed exception (not a bare KeyError), and the message must direct the user to run sync first.",
+      "relates_to_requirement": [
+        "CAP-CACHE-PATTERN",
+        "CAP-OSV"
+      ],
+      "preconditions": {
+        "osv_cache_synced": false,
+        "nvd_cache_synced": true,
+        "ghsa_cache_synced": true
+      },
+      "input": {
+        "deps": [
+          {
+            "name": "minimist",
+            "exact_version": "1.2.5",
+            "dependency_type": "direct",
+            "purl": "pkg:npm/minimist@1.2.5",
+            "ecosystem": "npm"
+          }
+        ]
+      },
+      "expected_output": {
+        "exception_type": "OSVCacheNotSyncedError",
+        "exception_message_contains": "OSV cache not initialized; run sync first",
+        "exit_code": 1,
+        "no_silent_crash": true
+      },
+      "assertions": [
+        "OSVCacheNotSyncedError is raised (or equivalent named exception class \u2014 NOT KeyError, NOT generic Exception)",
+        "Exception message contains the substring 'sync'",
+        "No partial result list is returned (mapper either returns fully or raises, never a half-populated result)"
+      ]
+    },
+    {
+      "id": "scenario_enh_007",
+      "name": "CPE sanitization on serialization \u2014 mixed components, PyPI keeps CPE, npm/github/golang strip CPE",
+      "category": "integration",
+      "description": "Feed a mixed components list (one PyPI, one npm, one GitHub Action, one Go) \u2014 all carrying CPE strings (fabricated for non-NVD ecosystems, legitimate for PyPI) \u2014 through CPESanitizingCycloneDXSerializer. Assert that ONLY the PyPI component retains its cpe field in the emitted JSON; the npm, github, and golang components have it stripped.",
+      "relates_to_requirement": [
+        "CAP-CPE-SANITIZE"
+      ],
+      "preconditions": {
+        "serializer": "CPESanitizingCycloneDXSerializer wraps parent CycloneDXSerializer"
+      },
+      "input": {
+        "components": [
+          {
+            "name": "langchain",
+            "version": "0.0.101",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+            "type": "library"
+          },
+          {
+            "name": "lodash",
+            "version": "4.17.20",
+            "purl": "pkg:npm/lodash@4.17.20",
+            "cpe": "cpe:2.3:a:lodash:lodash:4.17.20:*:*:*:*:node.js:*:*",
+            "type": "library"
+          },
+          {
+            "name": "actions/cache",
+            "version": "v4",
+            "purl": "pkg:github/actions/cache@v4",
+            "cpe": "cpe:2.3:a:actions\\/cache:actions\\/cache:v4:*:*:*:*:*:*:*",
+            "type": "library"
+          },
+          {
+            "name": "golang.org/x/net",
+            "version": "0.0.0-20190813141303-74dc4d7220e7",
+            "purl": "pkg:golang/golang.org/x/net@0.0.0-20190813141303-74dc4d7220e7",
+            "cpe": "cpe:2.3:a:golang.org\\/x\\/net:golang.org\\/x\\/net:v0.0.0:*:*:*:*:*:*:*",
+            "type": "library"
+          }
+        ]
+      },
+      "expected_output": {
+        "exit_code": 0,
+        "emitted_cyclonedx_components": [
+          {
+            "name": "langchain",
+            "version": "0.0.101",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "cpe": "cpe:2.3:a:langchain:langchain:0.0.101:*:*:*:*:python:*:*",
+            "type": "library"
+          },
+          {
+            "name": "lodash",
+            "version": "4.17.20",
+            "purl": "pkg:npm/lodash@4.17.20",
+            "type": "library"
+          },
+          {
+            "name": "actions/cache",
+            "version": "v4",
+            "purl": "pkg:github/actions/cache@v4",
+            "type": "library"
+          },
+          {
+            "name": "golang.org/x/net",
+            "version": "0.0.0-20190813141303-74dc4d7220e7",
+            "purl": "pkg:golang/golang.org/x/net@0.0.0-20190813141303-74dc4d7220e7",
+            "type": "library"
+          }
+        ],
+        "cpe_present_count": 1,
+        "cpe_absent_count": 3
+      },
+      "assertions": [
+        "Components[0] (PyPI) retains its 'cpe' key",
+        "Components[1] (npm) has no 'cpe' key",
+        "Components[2] (github) has no 'cpe' key",
+        "Components[3] (golang) has no 'cpe' key",
+        "All four components retain their 'purl' key unchanged",
+        "Equivalent assertions hold for SPDXSerializer (CPE is removed from externalRefs entries with referenceType=cpe23Type for non-NVD components)"
+      ]
+    },
+    {
+      "id": "scenario_enh_008",
+      "name": "Cache sync from fixture file \u2014 OSVCache.sync() loads records, subsequent lookup succeeds",
+      "category": "integration",
+      "description": "Given a path to an OSV fixture JSON file (the enhancement's step1b_mock_entities.json OSVVulnerabilityRecord array, serialized to a standalone fixture), call OSVCache.sync(source_path). After sync, OSVCache.is_synced() returns True, and OSVCache.lookup('pkg:npm/minimist@1.2.5') returns the corresponding OSV record. Verifies the parent NVDCacheManager.sync pattern is correctly mirrored.",
+      "relates_to_requirement": [
+        "CAP-CACHE-PATTERN",
+        "CAP-OSV"
+      ],
+      "preconditions": {
+        "osv_fixture_path": "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/fixtures/osv_sample.json",
+        "fixture_contains_minimist_record": true,
+        "osv_cache_initial_state": "constructed, not synced"
+      },
+      "input": {
+        "sync_call": "OSVCache().sync(source_path='fixtures/osv_sample.json')",
+        "subsequent_lookup": "OSVCache.lookup('pkg:npm/minimist@1.2.5')"
+      },
+      "expected_output": {
+        "is_synced_before_sync": false,
+        "is_synced_after_sync": true,
+        "lookup_result_count": 1,
+        "lookup_result": {
+          "id": "GHSA-xvch-5gv4-984h",
+          "aliases": [
+            "CVE-2021-44906"
+          ],
+          "severity": "MEDIUM"
+        },
+        "second_lookup_clean_purl": {
+          "purl": "pkg:npm/express@4.18.2",
+          "lookup_result_count": 0
+        }
+      },
+      "assertions": [
+        "is_synced() returns False before sync(), True after",
+        "lookup of known-vulnerable purl returns exactly one record matching the fixture",
+        "lookup of clean purl returns empty list (not None, not error)",
+        "sync() is idempotent \u2014 calling it twice with the same path does not duplicate records",
+        "No outbound network call during sync() \u2014 fixture is read from local filesystem only"
+      ]
+    },
+    {
+      "id": "scenario_enh_009",
+      "name": "Determinism \u2014 two runs of the full enhanced pipeline produce byte-identical output",
+      "category": "integration",
+      "description": "Run scenario_enh_001 twice in succession against the same inputs and caches. Capture the emitted CycloneDX JSON each time. Assert byte-equality. Validates the determinism success metric \u2014 no timestamps in matcher output, no nondeterministic ordering of merged results.",
+      "relates_to_requirement": [
+        "CAP-O1-DISPATCH"
+      ],
+      "preconditions": {
+        "scenario_enh_001_run_already": true,
+        "all_caches_synced": true,
+        "all_caches_in_same_state_as_first_run": true
+      },
+      "input": {
+        "deps_fixture_ref": "mixed_repo_deps",
+        "run_count": 2
+      },
+      "expected_output": {
+        "run_1_output_sha256": "<deterministic>",
+        "run_2_output_sha256": "<deterministic>",
+        "outputs_byte_equal": true,
+        "vulnerability_order_stable": true
+      },
+      "assertions": [
+        "json.dumps(run_1_output, sort_keys=True) == json.dumps(run_2_output, sort_keys=True)",
+        "Vulnerability records appear in the same order in both runs (stable sort by purl, then by advisory id)",
+        "No timestamp fields appear in matcher output",
+        "No random uuid-bearing fields appear in matcher output"
+      ]
+    }
+  ]
+}

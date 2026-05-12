@@ -1,0 +1,310 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "step": 5,
+    "phase": "tdd_red_phase",
+    "scope": "business_logic_unit_tests",
+    "generated_at": "2026-05-12T00:00:00Z",
+    "source_agent": "step5-agent-red-phase-1-business",
+    "is_enhancement": true,
+    "test_file": "step5_tdd_red_phase_business_tests.py",
+    "test_framework": "pytest",
+    "language": "Python 3.11+"
+  },
+
+  "input_sources": {
+    "requirements_file": "step1_requirements.json",
+    "mock_entities_file": "step1b_mock_entities.json",
+    "mock_scenarios_file": "step1b_mock_scenarios.json",
+    "bdd_feature_file": "step2_bdd_scenarios.feature",
+    "atdd_business_file": "step4_atdd_business.py",
+    "parent_red_phase_reference": "outputs/sessions/SBOM-20260409-sb01/step5_tdd_red_phase.py"
+  },
+
+  "subjects_under_test": [
+    {
+      "class_name": "EcosystemVulnerabilityMapper",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "PURL-type dispatch to NVD / OSV / GHSA backends; backward-compatible map_vulnerabilities(deps, cache) signature.",
+      "status": "NOT_IMPLEMENTED — Step 6 creates this class"
+    },
+    {
+      "class_name": "OSVCache",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "File-backed cache for OSV.dev fixture JSON. sync(path), lookup(purl), is_synced().",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "GHSACache",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "File-backed cache for GHSA fixture JSON, keyed by pkg:github/<owner>/<repo>@<ref>.",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "CPESanitizer",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "Strip cpe field from components whose PURL type is not NVD-indexed. sanitize_components(components, dispatch_table).",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "CycloneDXSerializer",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "Parent CycloneDX serializer extended with cpe_sanitize=bool flag.",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "SPDXSerializer",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "Parent SPDX serializer extended with cpe_sanitize=bool flag.",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "OSVCacheNotSyncedError",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "Typed exception raised when OSVCache.lookup() called before sync().",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "class_name": "GHSACacheNotSyncedError",
+      "module_target": "step6_tdd_green_phase_business",
+      "responsibility": "Typed exception raised when GHSACache.lookup() called before sync().",
+      "status": "NOT_IMPLEMENTED"
+    }
+  ],
+
+  "test_class_breakdown": [
+    {
+      "class": "TestEcosystemVulnerabilityMapper",
+      "test_count": 41,
+      "covers": [
+        "Constructor — separate kwargs and dict-of-caches forms",
+        "_DISPATCH_TABLE class attribute bucket structure + disjointness",
+        "_purl_type helper across 11 ecosystems + 3 malformed inputs",
+        "_resolve_backend helper parametrized over all 15 ecosystems",
+        "map_vulnerabilities happy paths per backend (nvd, osv, ghsa)",
+        "map_vulnerabilities edge cases: empty list, unknown type, missing purl, malformed purl",
+        "Error propagation: OSVCacheNotSyncedError, GHSACacheNotSyncedError",
+        "Output record shape contract (cve_id/advisory_id, severity, source, dep linkage)",
+        "Mixed-ecosystem dispatch distribution + no-duplicate invariant",
+        "Source tag distribution across ecosystems",
+        "O(1) dispatch overhead invariant (linear, not quadratic)"
+      ],
+      "parametrized_tests": 4,
+      "parametrize_expansion": "11 (purl_type) + 15 (resolve_backend) + 4 (source_tag) + 3 (purl_type malformed)",
+      "atdd_relationship": "DOES NOT DUPLICATE Step 4 ATDD; tests fine-grained class internals (helpers, table attribute, output shape) below the public-contract level."
+    },
+    {
+      "class": "TestOSVCache",
+      "test_count": 15,
+      "covers": [
+        "Constructor with optional cache_path",
+        "is_synced() before/after sync",
+        "sync() reads fixture JSON",
+        "sync() raises FileNotFoundError",
+        "sync() idempotency",
+        "lookup() before sync raises OSVCacheNotSyncedError",
+        "lookup() returns record for known-vulnerable PURL",
+        "lookup() returns empty for unmatched PURL",
+        "SEMVER range matching (inside, boundary, outside)",
+        "PURL whitespace tolerance",
+        "OSVSyncResult dataclass (optional contract)",
+        "Cache round-trip when cache_path persisted",
+        "Non-OSV-keyed PURL returns empty"
+      ],
+      "parametrized_tests": 0
+    },
+    {
+      "class": "TestGHSACache",
+      "test_count": 14,
+      "covers": [
+        "Constructor with optional cache_path",
+        "is_synced() before/after sync",
+        "sync() reads GHSA fixture JSON",
+        "sync() raises FileNotFoundError",
+        "sync() idempotency",
+        "lookup() before sync raises GHSACacheNotSyncedError",
+        "lookup() returns record for each of 3 known GHSA advisories (parametrized)",
+        "lookup() returns empty for clean action",
+        "Non-github PURL returns empty",
+        "Exact tag ref matching (e.g. 'v3')",
+        "Versioned ref matching inside range (e.g. 'v3.4.0')",
+        "Ref outside range returns empty"
+      ],
+      "parametrized_tests": 1,
+      "parametrize_expansion": "3 GHSA advisories"
+    },
+    {
+      "class": "TestCPESanitizer",
+      "test_count": 11,
+      "covers": [
+        "Empty list returns empty list",
+        "Keeps cpe for PyPI components",
+        "Strips cpe for github / npm / golang components",
+        "Does not mutate input list",
+        "Component without cpe left unchanged",
+        "Component without purl handled with warning",
+        "Mixed-ecosystem list — only non-NVD components lose cpe",
+        "Custom dispatch table override changes behaviour (table-driven, not hardcoded)",
+        "CPE pollution exemplars from fixtures match expected post-sanitization state"
+      ],
+      "parametrized_tests": 0
+    },
+    {
+      "class": "TestSerializerCPEIntegration",
+      "test_count": 6,
+      "covers": [
+        "CycloneDXSerializer default (cpe_sanitize=False) preserves CPEs",
+        "CycloneDXSerializer with cpe_sanitize=True strips non-NVD CPEs",
+        "SPDXSerializer default preserves CPEs",
+        "SPDXSerializer with cpe_sanitize=True strips non-NVD CPEs",
+        "Pure-PyPI input with cpe_sanitize=True keeps all CPEs (regression)",
+        "Zero github/npm CPE substrings in emitted JSON when cpe_sanitize=True"
+      ],
+      "parametrized_tests": 0
+    }
+  ],
+
+  "test_counts": {
+    "test_classes": 5,
+    "test_methods_authored": 65,
+    "test_items_collected_after_parametrize_expansion": 97,
+    "tests_currently_failing_red": 97,
+    "collection_errors": 0,
+    "note_on_count_growth": "65 authored test methods expand to 97 collected items due to @pytest.mark.parametrize across ecosystems (11 + 15 + 4 + 3) and the 3-advisory GHSA parametrize."
+  },
+
+  "anti_hardcoding_strategy": {
+    "summary": "All expected values are derived from JSON fixtures at test time. Only spec-contract literals (exception class names, log code strings, the substring 'sync') are inlined — and those are dictated by step1_requirements.json and the BDD feature file, not invented by tests.",
+    "techniques_used": [
+      "Module-scope fixtures load step1b_mock_entities.json and step1b_mock_scenarios.json once and hand out deepcopies",
+      "Dispatch table tests parametrize across the full ecosystem fixture (_all_ecosystem_param_ids) — no hand-typed ecosystem list",
+      "Expected CVE ids and advisory ids extracted from osv_records[i]['id_field'] / scenario['expected_output']['vulnerabilities'], never inlined",
+      "Expected dispatch counts pulled from scenario['expected_output']['dispatch_counts']",
+      "CPE pollution exemplar tests iterate the entities fixture and compare against its embedded expected_post_sanitization_component",
+      "Helper functions (_ids_in_results, _backend_counts) tolerate multiple field-naming conventions (cve_id/advisory_id/id_field/id, source/backend) so the implementation has design latitude without breaking tests",
+      "Custom dispatch table override test demonstrates table-driven behaviour: moving 'npm' into nvd_ecosystems must KEEP the npm component's cpe, proving the sanitizer reads the table rather than a hardcoded set"
+    ],
+    "spec_contract_literals_only": [
+      "OSVCacheNotSyncedError (exception class name from step1_requirements.business_rule_catalog rule 5)",
+      "GHSACacheNotSyncedError (exception class name from same rule)",
+      "Substring 'sync' (message contract from BDD Scenarios 15–16)",
+      "Log codes 'dispatch.unknown_purl_type', 'dispatch.missing_purl', 'dispatch.malformed_purl' (from BDD Scenarios 12–14)"
+    ]
+  },
+
+  "distinction_from_step4_atdd": {
+    "step4_atdd_test_count": 34,
+    "step5_unit_test_count": 97,
+    "growth_factor": "2.85x",
+    "rationale": "Step 4 ATDD tests the public, integration-level contract grouped by business RULE (one test class per Rule block in the BDD feature). Step 5 unit tests cover internal class structure grouped by business CLASS (one test class per business class). The two are complementary — Step 4 proves 'does the right thing', Step 5 proves 'does it correctly internally'.",
+    "specific_new_coverage_in_step5_not_in_step4": [
+      "_DISPATCH_TABLE class attribute structure + bucket disjointness invariant",
+      "_purl_type helper across 11 ecosystems + 3 malformed inputs",
+      "_resolve_backend helper parametrized across all 15 ecosystems in the dispatch table",
+      "Constructor variants (separate kwargs vs dict-of-caches)",
+      "O(1) dispatch overhead invariant via call-count instrumentation",
+      "OSVCache fine-grained: idempotency, FileNotFoundError, cache_path round-trip, OSVSyncResult dataclass shape, semver boundary semantics, whitespace tolerance",
+      "GHSACache fine-grained: exact tag ref matching, versioned ref inside-range matching, ref outside range",
+      "CPESanitizer: input non-mutation invariant, missing-cpe handling, missing-purl handling, custom dispatch-table override",
+      "Serializer cpe_sanitize=False vs True dichotomy (backward-compatible default)"
+    ]
+  },
+
+  "source_traceability": {
+    "step1_requirements": {
+      "business_rules_covered": [
+        "Dispatch By PURL Type (priority 1) — TestEcosystemVulnerabilityMapper",
+        "Preserve PyPI NVD Path (priority 2) — TestEcosystemVulnerabilityMapper (PyPI tests)",
+        "Strip Fabricated CPEs From SBOM Output (priority 3) — TestCPESanitizer + TestSerializerCPEIntegration",
+        "No Live Network In CI (priority 4) — Fixture-only test design (no requests/httpx imports anywhere)",
+        "Cache Sync Required Before Lookup (priority 5) — TestOSVCache + TestGHSACache not-synced tests"
+      ],
+      "engines_covered": [
+        "PURL Type Dispatch Engine — TestEcosystemVulnerabilityMapper",
+        "CPE Sanitization Engine — TestCPESanitizer + TestSerializerCPEIntegration"
+      ],
+      "modules_covered": [
+        "EcosystemVulnerabilityMapper module",
+        "OSVCache module",
+        "GHSACache module",
+        "CPESanitizer (serializer extension) module"
+      ]
+    },
+    "step1b_mock_entities": {
+      "osv_records_consumed": 5,
+      "ghsa_records_consumed": 3,
+      "mixed_ecosystem_dep_lists_consumed": 3,
+      "cpe_pollution_exemplars_consumed": 2,
+      "dispatch_table_fixtures_consumed": 1
+    },
+    "step1b_mock_scenarios": {
+      "scenarios_referenced_by_id": [
+        "scenario_enh_001 (mixed-ecosystem) — TestEcosystemVulnerabilityMapper mixed-dispatch tests",
+        "scenario_enh_004 (unknown PURL type) — TestEcosystemVulnerabilityMapper unknown-type test",
+        "scenario_enh_005 (empty deps) — TestEcosystemVulnerabilityMapper empty-list test",
+        "scenario_enh_006 (offline OSV cache) — TestOSVCache + TestEcosystemVulnerabilityMapper not-synced tests"
+      ]
+    },
+    "step2_bdd_scenarios": {
+      "scenarios_covered_with_unit_tests": "All 19 BDD scenarios — each major assertion in the feature file maps to one or more granular unit tests in this file. Step 5 also adds many tests BELOW the BDD level (helpers, attributes, internals).",
+      "total_bdd_scenarios_in_feature_file": 19
+    },
+    "step4_atdd_business": {
+      "test_classes_in_step4": 6,
+      "test_methods_in_step4": 34,
+      "relationship_to_step5": "Step 5 organizes tests by business CLASS (one Test* class per implementation class), whereas Step 4 organizes by business RULE. Step 5 tests are FINER granularity — they target single methods/branches/attributes; Step 4 tests target end-to-end public contracts."
+    }
+  },
+
+  "fixture_strategy": {
+    "scope": "module-scoped JSON loaders + per-test deepcopies",
+    "tmp_path_usage": "All sync() tests use pytest's tmp_path to write OSV/GHSA fixture JSON, avoiding any shared mutable filesystem state",
+    "no_network": "Zero outbound HTTP imports in the test module. All caches synced from tmp_path JSON files only. Rule 4 (No Live Network In CI) enforced at test design time.",
+    "deterministic": "All fixture data is committed to step1b_mock_entities.json and step1b_mock_scenarios.json; no timestamps, no random UUIDs in fixtures."
+  },
+
+  "red_phase_guarantee": {
+    "all_tests_must_fail": true,
+    "failure_mechanism": "Import of step6_tdd_green_phase_business fails (module does not exist yet). _require_implementation() at the top of each test body issues a clean pytest.fail() with a precise message identifying the missing module and the expected exported classes.",
+    "collection_succeeds": true,
+    "collection_count": 97,
+    "verified_collection_command": "pytest enhancements/ecosystem_aware_vuln_matching/step5_tdd_red_phase_business_tests.py --collect-only",
+    "verified_failure_command": "pytest enhancements/ecosystem_aware_vuln_matching/step5_tdd_red_phase_business_tests.py",
+    "verified_failure_result": "47 failed + 50 errors (97 total), zero passes, zero implementation present"
+  },
+
+  "handoff_to_green_phase": {
+    "step6_module_to_create": "step6_tdd_green_phase_business.py",
+    "step6_module_directory": "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/",
+    "required_exports": [
+      "class EcosystemVulnerabilityMapper",
+      "class OSVCache",
+      "class GHSACache",
+      "class CPESanitizer",
+      "class CycloneDXSerializer",
+      "class SPDXSerializer",
+      "class OSVCacheNotSyncedError(Exception)",
+      "class GHSACacheNotSyncedError(Exception)",
+      "OPTIONAL: dataclass OSVSyncResult (test skips gracefully if absent)"
+    ],
+    "key_invariants_step6_must_satisfy": [
+      "EcosystemVulnerabilityMapper exposes _DISPATCH_TABLE class attribute with nvd_ecosystems / osv_ecosystems / ghsa_ecosystems bucket lists, and these buckets are pairwise disjoint",
+      "EcosystemVulnerabilityMapper exposes a _purl_type (or purl_type) static/classmethod helper that returns the type segment of a well-formed PURL and None/'' for malformed input",
+      "EcosystemVulnerabilityMapper exposes a _resolve_backend (or resolve_backend) helper returning 'nvd' | 'osv' | 'ghsa' | None",
+      "map_vulnerabilities accepts both (deps, cache) and (deps, cache=None) signatures",
+      "Output records carry source='nvd'|'osv'|'ghsa' (or backend='...') and a recognizable id field (cve_id, advisory_id, id_field, or id)",
+      "OSVCache and GHSACache constructors accept optional cache_path kwarg",
+      "lookup() before sync() raises a TYPED exception (NOT KeyError, NOT generic Exception) with message containing the substring 'sync'",
+      "sync() is idempotent — calling it twice does not duplicate records",
+      "OSVCache lookup honors SEMVER ranges: introduced..fixed (boundary fixed version is NOT vulnerable)",
+      "GHSACache lookup honors GIT ranges: introduced..fixed with version tags like v3, v3.4.0",
+      "CPESanitizer.sanitize_components returns a new list and does NOT mutate input components",
+      "CPESanitizer is table-driven: the nvd_ecosystems list in the dispatch_table dictates which components keep their cpe",
+      "CycloneDXSerializer and SPDXSerializer accept cpe_sanitize=bool with default False (backward-compat)",
+      "Unknown PURL type, missing-purl, and malformed-purl deps are skipped with a structured WARNING log entry (codes: dispatch.unknown_purl_type, dispatch.missing_purl, dispatch.malformed_purl)",
+      "No live-network imports (requests, httpx, urllib3) anywhere in the module"
+    ]
+  }
+}

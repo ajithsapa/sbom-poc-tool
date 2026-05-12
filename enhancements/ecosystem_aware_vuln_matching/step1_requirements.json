@@ -1,0 +1,675 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "created_at": "2026-05-12T00:00:00Z",
+    "use_case_name": "SBOM POC Tool — Ecosystem-Aware Vulnerability Matching",
+    "thinking_iterations": 4,
+    "research_enabled": false,
+    "research_queries": 0,
+    "confidence_score": 95,
+    "similar_patterns_found": 1,
+    "organizational_compliance": true,
+    "industry_research_validated": false,
+    "data_sources": ["enhancement_spec", "parent_session", "internal_knowledge"],
+    "document_driven_mode": false,
+    "source_document": null,
+    "version": "1.0.0",
+    "mode": "autonomous",
+    "is_enhancement": true,
+    "enhancement_type": "feature_addition",
+    "parent_artifacts": {
+      "business_logic": "outputs/sessions/SBOM-20260409-sb01/step6_tdd_green_phase.py",
+      "orchestration": "outputs/sessions/SBOM-20260409-sb01/step9_tdd_green_phase_orchestration.py",
+      "requirements": "outputs/sessions/SBOM-20260409-sb01/step1_requirements.json"
+    },
+    "parent_classes_extended": [
+      "VulnerabilityMapper",
+      "CycloneDXSerializer",
+      "SPDXSerializer"
+    ],
+    "parent_classes_preserved": [
+      "SyftAdapter",
+      "TrivyAdapter",
+      "Deduplicator",
+      "RemediationEnricher",
+      "NVDCacheManager",
+      "NVDSyncError",
+      "NVDSyncResult",
+      "VEXFilter",
+      "ScanWorkflowState",
+      "NVDSyncWorkflowState",
+      "ScanResult",
+      "SyncResult",
+      "WorkflowStateMachine",
+      "NVDWorkflowStateMachine",
+      "ScanOrchestrator",
+      "NVDSyncOrchestrator",
+      "CLIOrchestrator"
+    ]
+  },
+
+  "agent_specification": {
+    "domain": "Developer Tooling — Software Supply Chain Security",
+    "primary_function": "Ecosystem-aware vulnerability matching: dispatch by purl type to the right vulnerability database, replacing the existing single-source NVD/CPE lookup that produces false negatives for non-PyPI ecosystems and propagates fabricated CPEs for GitHub Actions / npm / Go components.",
+    "target_users": [
+      "CI/CD pipeline automation",
+      "development teams running automated scans against multi-ecosystem repositories",
+      "security teams reviewing SBOM output for accuracy across ecosystems"
+    ],
+    "interaction_patterns": {
+      "primary_channel": "CLI",
+      "invocation_style": "single-run per repository, suitable for integration into automated dev pipelines (CI), unchanged from parent session",
+      "session_length": "short"
+    },
+    "key_scenarios": [
+      "Scan a multi-ecosystem repository (PyPI + npm + GitHub Actions) and produce correct per-ecosystem vulnerability matches",
+      "Scan a pure-npm repository and receive OSV.dev-sourced vulnerability hits (where previously NVD returned zero)",
+      "Scan a repository containing GitHub Actions and receive GHSA-sourced vulnerability hits (where previously NVD returned zero)",
+      "Verify emitted SBOM (CycloneDX/SPDX) contains no fabricated CPE strings for non-NVD-indexed ecosystems",
+      "Confirm all existing PyPI vulnerability matching behaviour continues to pass parent-session tests (backward compatibility)"
+    ]
+  },
+
+  "capabilities": {
+    "core_skills": [
+      "PURL-type-based dispatch routing each dependency to the correct vulnerability backend",
+      "OSV.dev fixture-driven vulnerability lookup keyed by PURL for npm/golang/cargo/composer/hex/pub/swift ecosystems",
+      "GitHub Advisory Database (GHSA) fixture-driven vulnerability lookup keyed by pkg:github/<owner>/<repo>@<version> PURLs",
+      "Backward-compatible NVD cache lookup preserved for pypi/nuget/maven/gem/deb/rpm/apk ecosystems",
+      "CPE sanitization in CycloneDX/SPDX serializers — strip CPE field from components whose PURL type is not NVD-indexed",
+      "Cache pattern parity with parent NVDCacheManager: file-backed sync(source_path) + in-memory dict for OSV and GHSA caches",
+      "Deterministic dispatch overhead at O(1) per dep via dict lookup on purl type"
+    ],
+    "knowledge_requirements": [
+      "PURL (Package URL) specification — type field semantics and ecosystem identifiers",
+      "OSV.dev vulnerability schema (id, summary, affected packages, ranges, references)",
+      "GitHub Advisory Database schema (GHSA IDs, affected packages by ecosystem)",
+      "NVD/CPE indexing scope — which ecosystems NVD covers vs which it does not",
+      "CycloneDX and SPDX component representation (purl vs cpe fields)"
+    ],
+    "integration_needs": [
+      "OSV.dev fixture JSON files (under enhancement fixtures/ or examples/ directory)",
+      "GHSA fixture JSON files (under enhancement fixtures/ or examples/ directory)",
+      "Parent NVDCacheManager (consumed unchanged via existing API)",
+      "Parent CycloneDXSerializer and SPDXSerializer (extended to apply CPE sanitization)",
+      "Parent VulnerabilityMapper.map_vulnerabilities(deps, cache) signature (preserved; internally dispatches)"
+    ],
+    "reasoning_complexity": "moderate",
+    "_reasoning_note": "Deterministic dispatch table plus two cache pattern duplications of the existing NVD cache implementation. No AI/ML, no probabilistic matching. Complexity is in correct PURL type routing and ensuring CPE pollution is removed at serialization time.",
+    "language_scope": {
+      "in_scope_ecosystems_via_nvd": ["pypi", "nuget", "maven", "gem", "deb", "rpm", "apk"],
+      "in_scope_ecosystems_via_osv": ["npm", "golang", "cargo", "composer", "hex", "pub", "swift"],
+      "in_scope_ecosystems_via_ghsa": ["github"],
+      "out_of_scope": [
+        "Ecosystems beyond the dispatch table listed above",
+        "Rewriting NVDCacheManager",
+        "Live network calls to OSV.dev or GitHub at runtime in CI (CLI may optionally support live mode behind a flag, but tests must be fixture-driven)",
+        "Modifying parent session files directly — all new artifacts live in enhancement directory; integration via step10_integration.py",
+        "Changing CycloneDX/SPDX schemas beyond filtering bogus CPEs"
+      ]
+    }
+  },
+
+  "personality": {
+    "tone": "technical",
+    "style": "efficient",
+    "_note": "Inherited from parent session — CLI tool, machine-facing, non-conversational."
+  },
+
+  "constraints": {
+    "technical": {
+      "response_time_max": {
+        "value": "O(1) dispatch overhead per dependency",
+        "_note": "Dispatch is a dict lookup on PURL type. Cache lookup remains O(1) per dep. No measurable performance regression vs parent baseline."
+      },
+      "concurrent_users": {
+        "value": null,
+        "_note": "Inherited from parent — single-user CLI, single-run."
+      },
+      "deployment_platform": "Docker (inherited from parent)",
+      "cli_framework": "Typer (inherited from parent)",
+      "language": "Python 3.11+",
+      "test_framework": "pytest (inherited from parent)",
+      "no_live_network_in_ci": true,
+      "_no_live_network_note": "Both OSV and GHSA matchers MUST be fixture-driven. Tests use sample OSV/GHSA JSON files under fixtures/ or examples/. CLI may optionally support live mode behind a flag, but that flag is NOT exercised in CI.",
+      "determinism": true,
+      "_determinism_note": "Same inputs always produce same outputs. No timestamps in matcher output. Cache load order is deterministic.",
+      "dispatch_overhead": "O(1) per dependency (dict lookup on purl type)",
+      "cache_lookup_complexity": "O(1) per dependency (preserved from parent NVDCacheManager pattern)",
+      "backward_compatibility": {
+        "required": true,
+        "description": "All existing PyPI scan tests in the parent session must continue to pass. The enhanced mapper exposes the same map_vulnerabilities(deps, cache) signature; internally it dispatches by PURL type."
+      }
+    },
+    "business": {
+      "scope_boundary": "Vulnerability matching layer only — does not touch dependency scanning, deduplication, VEX filtering, remediation enrichment, or NVD sync workflow.",
+      "compliance_requirements": [
+        "SPDX baseline field alignment (inherited from parent)",
+        "CycloneDX baseline field alignment (inherited from parent)",
+        "Emitted SBOM must not contain fabricated CPE strings for non-NVD-indexed ecosystems"
+      ],
+      "data_classification": "INTERNAL",
+      "out_of_scope": [
+        "Rewriting NVDCacheManager itself",
+        "Live network calls to OSV.dev or GitHub at runtime in CI",
+        "Modifying parent session files (the enhancement directory must contain all new artifacts; integration happens via step10_integration.py)",
+        "Changing CycloneDX/SPDX schemas beyond filtering bogus CPEs",
+        "Adding new ecosystems beyond the dispatch table listed in capabilities.language_scope"
+      ]
+    },
+    "ethical": {
+      "safety_guidelines": [],
+      "bias_prevention": [],
+      "privacy_requirements": [],
+      "_note": "Inherited from parent session — no AI/ML components, standard deterministic supply-chain tooling.",
+      "fairness_requirements": null,
+      "hallucination_prevention": null,
+      "prompt_injection_resistance": null,
+      "safety_validation": null
+    }
+  },
+
+  "success_metrics": [
+    {
+      "metric": "dispatch_correctness",
+      "target": "100% of dependencies are routed to the correct backend based on their PURL type",
+      "measurement": "Unit tests assert dispatch(purl) returns the expected matcher for every ecosystem in the dispatch table"
+    },
+    {
+      "metric": "osv_match_coverage",
+      "target": "OSV.dev fixture-driven lookups return correct vulnerability records for npm/golang/cargo/composer/hex/pub/swift PURLs present in the fixture",
+      "measurement": "Unit tests assert known-vulnerable PURLs produce matching vulnerability records; known-clean PURLs produce empty results"
+    },
+    {
+      "metric": "ghsa_match_coverage",
+      "target": "GHSA fixture-driven lookups return correct vulnerability records for pkg:github/* PURLs present in the fixture",
+      "measurement": "Unit tests assert known-vulnerable GitHub Actions PURLs produce matching vulnerability records; clean ones produce empty results"
+    },
+    {
+      "metric": "cpe_sanitization_correctness",
+      "target": "Emitted CycloneDX and SPDX output contains zero CPE strings for components whose PURL type is not in the NVD-indexed set",
+      "measurement": "Unit tests scan emitted SBOM JSON and assert no cpe field is present for pkg:github/*, pkg:npm/*, pkg:golang/*, pkg:cargo/*, pkg:composer/*, pkg:hex/*, pkg:pub/*, pkg:swift/* components"
+    },
+    {
+      "metric": "backward_compatibility",
+      "target": "100% of parent-session PyPI scan tests continue to pass with the enhanced mapper in place",
+      "measurement": "Parent session pytest suite run against the integrated step10 build returns the same pass count as the parent baseline"
+    },
+    {
+      "metric": "test_coverage",
+      "target": "At least 15 new unit tests covering dispatch table, OSV lookup, GHSA lookup, CPE stripping, and integration with the existing PyPI path",
+      "measurement": "pytest collection count on the enhancement's step5_tdd_red_phase test module"
+    },
+    {
+      "metric": "no_live_network_in_ci",
+      "target": "Zero outbound network calls during enhancement test execution",
+      "measurement": "Network traffic monitoring during pytest run; all matcher tests use fixture files only"
+    },
+    {
+      "metric": "determinism",
+      "target": "Same inputs produce identical outputs across repeated runs (no timestamps, no nondeterministic ordering)",
+      "measurement": "Run enhancement test suite N times; assert output byte-equality"
+    }
+  ],
+
+  "domain_model": {
+    "_active": true,
+    "_activation_reason": "Enhancement introduces 3 new entities (PurlDispatchTable, OSVCache, GHSACache) and extends 2 existing serializer behaviours",
+    "entities": [
+      {
+        "name": "PurlDispatchTable",
+        "description": "Static mapping from PURL type to vulnerability matcher backend. Determines which cache/matcher handles a given dependency.",
+        "attributes": [
+          {"name": "mapping", "type": "object", "required": true, "_note": "Dict[str, str] keyed by purl type, value is matcher identifier: 'nvd' | 'osv' | 'ghsa'"},
+          {"name": "nvd_types", "type": "array", "required": true, "default_value": ["pypi", "nuget", "maven", "gem", "deb", "rpm", "apk"]},
+          {"name": "osv_types", "type": "array", "required": true, "default_value": ["npm", "golang", "cargo", "composer", "hex", "pub", "swift"]},
+          {"name": "ghsa_types", "type": "array", "required": true, "default_value": ["github"]},
+          {"name": "fallback_behaviour", "type": "enum", "required": true, "enum_values": ["return_empty", "raise_error"], "default_value": "return_empty", "_note": "Unknown purl type → no vulnerability match returned; this is preferable to a fabricated CPE lookup"}
+        ],
+        "relationships": [
+          {"target_entity": "EcosystemVulnerabilityMapper", "type": "consumed_by", "cardinality": "1:1", "required": true}
+        ]
+      },
+      {
+        "name": "EcosystemVulnerabilityMapper",
+        "description": "New mapper class (or extended VulnerabilityMapper) that dispatches each dependency to the correct backend by PURL type. Replaces single-source NVD lookup with multi-source ecosystem-aware lookup.",
+        "attributes": [
+          {"name": "nvd_cache", "type": "object", "required": true, "_note": "Reference to parent NVDCacheManager — unchanged"},
+          {"name": "osv_cache", "type": "object", "required": true, "_note": "New OSVCache instance"},
+          {"name": "ghsa_cache", "type": "object", "required": true, "_note": "New GHSACache instance"},
+          {"name": "dispatch_table", "type": "object", "required": true, "_note": "PurlDispatchTable instance"}
+        ],
+        "relationships": [
+          {"target_entity": "PurlDispatchTable", "type": "uses", "cardinality": "N:1", "required": true},
+          {"target_entity": "OSVCache", "type": "uses", "cardinality": "N:1", "required": true},
+          {"target_entity": "GHSACache", "type": "uses", "cardinality": "N:1", "required": true},
+          {"target_entity": "NVDCacheManager", "type": "uses", "cardinality": "N:1", "required": true, "_note": "Parent class — consumed unchanged"}
+        ],
+        "_signature_contract": "map_vulnerabilities(deps, cache) — same as parent VulnerabilityMapper to preserve backward compatibility"
+      },
+      {
+        "name": "OSVCache",
+        "description": "File-backed cache mirroring NVDCacheManager pattern. Ingests OSV.dev fixture JSON via sync(source_path); stores entries in an in-memory dict keyed by PURL.",
+        "attributes": [
+          {"name": "entries", "type": "object", "required": true, "_note": "Dict[str, dict] — key is purl string, value is OSV vulnerability record"},
+          {"name": "source_path", "type": "string", "required": false, "_note": "Path to OSV fixture JSON file used during sync()"},
+          {"name": "last_synced_at", "type": "date", "required": false, "_note": "Populated by sync(); supports offline/test mode"}
+        ],
+        "relationships": [
+          {"target_entity": "EcosystemVulnerabilityMapper", "type": "consumed_by", "cardinality": "1:1", "required": true}
+        ],
+        "_methods_required": [
+          "sync(source_path) — ingest fixture JSON and populate in-memory dict",
+          "lookup(purl) — return list of vulnerability records for the given PURL, or empty list",
+          "is_synced() — boolean: whether sync has been performed"
+        ]
+      },
+      {
+        "name": "GHSACache",
+        "description": "File-backed cache mirroring NVDCacheManager pattern. Same structure as OSVCache but keyed specifically by pkg:github/<owner>/<repo>@<version> PURLs and sourced from GitHub Advisory Database fixtures.",
+        "attributes": [
+          {"name": "entries", "type": "object", "required": true, "_note": "Dict[str, dict] — key is github PURL, value is GHSA vulnerability record"},
+          {"name": "source_path", "type": "string", "required": false},
+          {"name": "last_synced_at", "type": "date", "required": false}
+        ],
+        "relationships": [
+          {"target_entity": "EcosystemVulnerabilityMapper", "type": "consumed_by", "cardinality": "1:1", "required": true}
+        ],
+        "_methods_required": [
+          "sync(source_path) — ingest GHSA fixture JSON",
+          "lookup(purl) — return list of vulnerability records for the given github PURL, or empty list",
+          "is_synced() — boolean"
+        ]
+      },
+      {
+        "name": "CPESanitizer",
+        "description": "Logic applied during SBOM serialization that strips the cpe field from any component whose PURL type is not in the NVD-indexed set. Components keep their PURL — only the bogus CPE is removed.",
+        "attributes": [
+          {"name": "nvd_indexed_types", "type": "array", "required": true, "default_value": ["pypi", "nuget", "maven", "gem", "deb", "rpm", "apk"]},
+          {"name": "applied_in", "type": "array", "required": true, "default_value": ["CycloneDXSerializer.serialize", "SPDXSerializer.serialize"]}
+        ],
+        "relationships": [
+          {"target_entity": "CycloneDXSerializer", "type": "extends_behaviour_of", "cardinality": "1:1", "required": true, "_note": "Parent serializer is extended/wrapped to apply sanitization"},
+          {"target_entity": "SPDXSerializer", "type": "extends_behaviour_of", "cardinality": "1:1", "required": true}
+        ]
+      }
+    ]
+  },
+
+  "engines_and_rules": {
+    "_active": true,
+    "_activation_reason": "One deterministic dispatch engine introduced by this enhancement",
+    "engines": [
+      {
+        "name": "PURL Type Dispatch Engine",
+        "purpose": "Route each dependency to the correct vulnerability backend based on the type field of its PURL string.",
+        "inputs": [
+          {"name": "purl", "type": "string", "source_entity": "DependencyInventory", "_note": "PURL string of the form pkg:<type>/<rest>"}
+        ],
+        "outputs": [
+          {"name": "matcher_backend", "type": "enum", "range": "nvd | osv | ghsa | none", "_note": "'none' applies for unknown purl types under fallback_behaviour=return_empty"}
+        ],
+        "rule_table": [
+          {
+            "rule_id": "Dispatch — NVD",
+            "priority": 1,
+            "condition": "purl.type IN {pypi, nuget, maven, gem, deb, rpm, apk}",
+            "action": "Route to NVDCacheManager.lookup(purl)",
+            "values": {"nvd_types": ["pypi", "nuget", "maven", "gem", "deb", "rpm", "apk"]},
+            "exceptions": []
+          },
+          {
+            "rule_id": "Dispatch — OSV",
+            "priority": 2,
+            "condition": "purl.type IN {npm, golang, cargo, composer, hex, pub, swift}",
+            "action": "Route to OSVCache.lookup(purl)",
+            "values": {"osv_types": ["npm", "golang", "cargo", "composer", "hex", "pub", "swift"]},
+            "exceptions": []
+          },
+          {
+            "rule_id": "Dispatch — GHSA",
+            "priority": 3,
+            "condition": "purl.type == 'github'",
+            "action": "Route to GHSACache.lookup(purl)",
+            "values": {"ghsa_types": ["github"]},
+            "exceptions": []
+          },
+          {
+            "rule_id": "Dispatch — Unknown (Fallback)",
+            "priority": 4,
+            "condition": "purl.type NOT IN any of the above sets",
+            "action": "Return empty vulnerability list (no fabricated lookup)",
+            "values": {},
+            "exceptions": ["Document the skipped purl type for visibility but do not error the scan"]
+          }
+        ],
+        "aggregation_method": "first_match on purl type",
+        "aggregation_hierarchy": "PURL → type → matcher backend → vulnerability records",
+        "evaluation_order": "sequential",
+        "match_behavior": "first_match",
+        "fallback_required": true
+      },
+      {
+        "name": "CPE Sanitization Engine",
+        "purpose": "During SBOM serialization, remove the cpe field from any component whose PURL type is not in the NVD-indexed set, to prevent fabricated CPE strings from polluting downstream consumers.",
+        "inputs": [
+          {"name": "component", "type": "object", "source_entity": "DependencyInventory", "_note": "Component object as prepared for CycloneDX/SPDX serialization, including purl and (possibly) cpe fields"}
+        ],
+        "outputs": [
+          {"name": "sanitized_component", "type": "object", "_note": "Same component with cpe field removed if PURL type is not NVD-indexed"}
+        ],
+        "rule_table": [
+          {
+            "rule_id": "Sanitize — Keep CPE for NVD-indexed types",
+            "priority": 1,
+            "condition": "component.purl.type IN {pypi, nuget, maven, gem, deb, rpm, apk}",
+            "action": "Preserve cpe field as-is",
+            "values": {},
+            "exceptions": []
+          },
+          {
+            "rule_id": "Sanitize — Strip CPE for non-NVD-indexed types",
+            "priority": 2,
+            "condition": "component.purl.type NOT IN {pypi, nuget, maven, gem, deb, rpm, apk}",
+            "action": "Remove cpe field from component before emission",
+            "values": {},
+            "exceptions": ["Component keeps purl field; only cpe is removed"]
+          }
+        ],
+        "aggregation_method": "first_match on PURL type",
+        "evaluation_order": "sequential",
+        "match_behavior": "first_match",
+        "fallback_required": false
+      }
+    ]
+  },
+
+  "workflow_definitions": {
+    "_active": true,
+    "_activation_reason": "Enhancement modifies the matching_vulnerabilities state of the parent Scan Workflow and inserts CPE sanitization into the exporting_sbom state",
+    "workflows": [
+      {
+        "name": "Enhanced Vulnerability Matching (sub-workflow within parent Scan Workflow's matching_vulnerabilities state)",
+        "type": "sequential",
+        "states": [
+          {"name": "received_dep_list", "description": "Deduplicated dependency inventory received from parent Deduplicator", "is_initial": true, "is_terminal": false, "allowed_actors": ["EcosystemVulnerabilityMapper"]},
+          {"name": "dispatching_per_dep", "description": "For each dependency, parse PURL and consult PurlDispatchTable", "is_initial": false, "is_terminal": false, "allowed_actors": ["EcosystemVulnerabilityMapper", "PurlDispatchTable"]},
+          {"name": "querying_nvd", "description": "For NVD-routed deps, call NVDCacheManager.lookup (parent behaviour, unchanged)", "is_initial": false, "is_terminal": false, "allowed_actors": ["NVDCacheManager"]},
+          {"name": "querying_osv", "description": "For OSV-routed deps, call OSVCache.lookup", "is_initial": false, "is_terminal": false, "allowed_actors": ["OSVCache"]},
+          {"name": "querying_ghsa", "description": "For GHSA-routed deps, call GHSACache.lookup", "is_initial": false, "is_terminal": false, "allowed_actors": ["GHSACache"]},
+          {"name": "merging_results", "description": "Combine vulnerability records from all backends into the unified dep+vuln list expected by downstream parent steps", "is_initial": false, "is_terminal": true, "allowed_actors": ["EcosystemVulnerabilityMapper"]}
+        ],
+        "transitions": [
+          {"from_state": "received_dep_list", "to_state": "dispatching_per_dep", "trigger": "Dep list handed off from Deduplicator", "guard_conditions": ["NVDCache populated", "OSVCache populated", "GHSACache populated"], "actions": [], "actor": "EcosystemVulnerabilityMapper"},
+          {"from_state": "dispatching_per_dep", "to_state": "querying_nvd", "trigger": "PURL type in NVD set", "guard_conditions": [], "actions": [], "actor": "PurlDispatchTable"},
+          {"from_state": "dispatching_per_dep", "to_state": "querying_osv", "trigger": "PURL type in OSV set", "guard_conditions": [], "actions": [], "actor": "PurlDispatchTable"},
+          {"from_state": "dispatching_per_dep", "to_state": "querying_ghsa", "trigger": "PURL type in GHSA set", "guard_conditions": [], "actions": [], "actor": "PurlDispatchTable"},
+          {"from_state": "querying_nvd", "to_state": "merging_results", "trigger": "NVD lookup complete", "guard_conditions": [], "actions": [], "actor": "NVDCacheManager"},
+          {"from_state": "querying_osv", "to_state": "merging_results", "trigger": "OSV lookup complete", "guard_conditions": [], "actions": [], "actor": "OSVCache"},
+          {"from_state": "querying_ghsa", "to_state": "merging_results", "trigger": "GHSA lookup complete", "guard_conditions": [], "actions": [], "actor": "GHSACache"}
+        ],
+        "error_paths": [
+          {"from_state": "dispatching_per_dep", "error_condition": "Unknown PURL type", "recovery_action": "Apply fallback (return empty vulnerability list); log skipped type; do not error the scan"},
+          {"from_state": "querying_osv", "error_condition": "OSVCache not synced", "recovery_action": "Raise actionable error: 'OSV cache not initialized; run sync first'"},
+          {"from_state": "querying_ghsa", "error_condition": "GHSACache not synced", "recovery_action": "Raise actionable error: 'GHSA cache not initialized; run sync first'"}
+        ]
+      }
+    ]
+  },
+
+  "business_rule_catalog": {
+    "_active": true,
+    "_activation_reason": "5 deterministic business rules introduced by this enhancement",
+    "rules": [
+      {
+        "rule_id": "Dispatch By PURL Type",
+        "name": "Dispatch By PURL Type",
+        "category": "business_logic",
+        "priority": 1,
+        "condition": "EcosystemVulnerabilityMapper receives a dependency for matching",
+        "action": "Parse PURL, look up type in PurlDispatchTable, route to corresponding backend (nvd | osv | ghsa)",
+        "else_action": "Apply fallback_behaviour = return_empty",
+        "dependencies": [],
+        "affected_entities": ["EcosystemVulnerabilityMapper", "PurlDispatchTable"]
+      },
+      {
+        "rule_id": "Preserve PyPI NVD Path",
+        "name": "Preserve PyPI NVD Path",
+        "category": "constraint",
+        "priority": 2,
+        "condition": "PURL type is in NVD set (pypi, nuget, maven, gem, deb, rpm, apk)",
+        "action": "Use parent NVDCacheManager.lookup unchanged — preserve all existing behaviour",
+        "else_action": null,
+        "dependencies": ["Dispatch By PURL Type"],
+        "affected_entities": ["NVDCacheManager", "EcosystemVulnerabilityMapper"],
+        "_backward_compatibility_critical": true
+      },
+      {
+        "rule_id": "Strip Fabricated CPEs From SBOM Output",
+        "name": "Strip Fabricated CPEs From SBOM Output",
+        "category": "validation",
+        "priority": 3,
+        "condition": "CycloneDXSerializer or SPDXSerializer is preparing a component for emission AND component.purl.type NOT IN NVD-indexed set",
+        "action": "Remove the cpe field from the component before emission; preserve purl",
+        "else_action": "Emit component with cpe field intact (NVD-indexed ecosystems only)",
+        "dependencies": [],
+        "affected_entities": ["CycloneDXSerializer", "SPDXSerializer", "CPESanitizer"]
+      },
+      {
+        "rule_id": "No Live Network In CI",
+        "name": "No Live Network In CI",
+        "category": "constraint",
+        "priority": 4,
+        "condition": "Enhancement test suite is running (CI mode)",
+        "action": "All OSV and GHSA lookups must use fixture files only; zero outbound network calls",
+        "else_action": "Test must fail if any outbound network call is detected",
+        "dependencies": [],
+        "affected_entities": ["OSVCache", "GHSACache"]
+      },
+      {
+        "rule_id": "Cache Sync Required Before Lookup",
+        "name": "Cache Sync Required Before Lookup",
+        "category": "constraint",
+        "priority": 5,
+        "condition": "OSVCache or GHSACache.lookup is invoked before sync()",
+        "action": "Raise actionable error indicating the relevant cache must be synced first",
+        "else_action": "Proceed with lookup",
+        "dependencies": [],
+        "affected_entities": ["OSVCache", "GHSACache"]
+      }
+    ]
+  },
+
+  "module_inventory": {
+    "_active": true,
+    "_activation_reason": "Enhancement introduces 3 new modules and extends 1 existing serialization module",
+    "modules": [
+      {
+        "name": "EcosystemVulnerabilityMapper",
+        "description": "New mapper that dispatches by PURL type. Replaces direct calls to parent VulnerabilityMapper in the orchestration path while preserving its public signature.",
+        "features": [
+          "PURL-type dispatch (Rules: Dispatch By PURL Type)",
+          "Backward-compatible PyPI/NVD path (Rules: Preserve PyPI NVD Path)",
+          "Unified result merging across nvd/osv/ghsa backends"
+        ],
+        "owned_entities": ["EcosystemVulnerabilityMapper", "PurlDispatchTable"],
+        "dependencies": ["OSVCache (new)", "GHSACache (new)", "NVDCacheManager (parent, unchanged)"],
+        "external_integrations": []
+      },
+      {
+        "name": "OSVCache",
+        "description": "File-backed cache for OSV.dev vulnerability data. Mirrors parent NVDCacheManager pattern.",
+        "features": [
+          "sync(source_path) — ingest OSV fixture JSON",
+          "lookup(purl) — O(1) dict lookup by PURL",
+          "is_synced() — readiness check"
+        ],
+        "owned_entities": ["OSVCache"],
+        "dependencies": [],
+        "external_integrations": ["OSV.dev fixture JSON files (filesystem only in CI)"]
+      },
+      {
+        "name": "GHSACache",
+        "description": "File-backed cache for GitHub Advisory Database vulnerability data. Mirrors parent NVDCacheManager pattern; keyed by pkg:github/* PURLs.",
+        "features": [
+          "sync(source_path) — ingest GHSA fixture JSON",
+          "lookup(purl) — O(1) dict lookup by PURL",
+          "is_synced() — readiness check"
+        ],
+        "owned_entities": ["GHSACache"],
+        "dependencies": [],
+        "external_integrations": ["GHSA fixture JSON files (filesystem only in CI)"]
+      },
+      {
+        "name": "CPESanitizer (serializer extension)",
+        "description": "CPE sanitization applied during CycloneDX/SPDX serialization. Either implemented as a wrapper around parent serializers or as a behaviour added via subclassing.",
+        "features": [
+          "Strip cpe field from components whose PURL type is not in NVD-indexed set",
+          "Preserve purl field for all components"
+        ],
+        "owned_entities": ["CPESanitizer"],
+        "dependencies": ["CycloneDXSerializer (parent)", "SPDXSerializer (parent)"],
+        "external_integrations": []
+      }
+    ]
+  },
+
+  "test_strategy": {
+    "minimum_new_unit_tests": 15,
+    "test_categories": [
+      {
+        "category": "Dispatch table",
+        "description": "Tests that PurlDispatchTable correctly maps each ecosystem PURL type to the correct backend identifier",
+        "example_tests": [
+          "test_dispatch_pypi_routes_to_nvd",
+          "test_dispatch_npm_routes_to_osv",
+          "test_dispatch_github_routes_to_ghsa",
+          "test_dispatch_unknown_type_returns_empty"
+        ]
+      },
+      {
+        "category": "OSV lookup",
+        "description": "Tests that OSVCache correctly ingests fixture JSON and returns vulnerability records for known PURLs",
+        "example_tests": [
+          "test_osv_cache_sync_loads_fixture",
+          "test_osv_cache_lookup_known_vulnerable_npm_package",
+          "test_osv_cache_lookup_clean_package_returns_empty",
+          "test_osv_cache_lookup_before_sync_raises"
+        ]
+      },
+      {
+        "category": "GHSA lookup",
+        "description": "Tests that GHSACache correctly ingests fixture JSON and returns vulnerability records for known github PURLs",
+        "example_tests": [
+          "test_ghsa_cache_sync_loads_fixture",
+          "test_ghsa_cache_lookup_known_vulnerable_github_action",
+          "test_ghsa_cache_lookup_clean_action_returns_empty"
+        ]
+      },
+      {
+        "category": "CPE stripping in serializers",
+        "description": "Tests that CycloneDXSerializer and SPDXSerializer strip CPE for non-NVD-indexed ecosystems",
+        "example_tests": [
+          "test_cyclonedx_strips_cpe_for_github_component",
+          "test_cyclonedx_strips_cpe_for_npm_component",
+          "test_cyclonedx_keeps_cpe_for_pypi_component",
+          "test_spdx_strips_cpe_for_golang_component"
+        ]
+      },
+      {
+        "category": "Integration with existing PyPI path",
+        "description": "Tests that confirm backward compatibility — PyPI deps continue to flow through NVD with identical behaviour to the parent",
+        "example_tests": [
+          "test_pypi_dep_still_uses_nvd_cache_unchanged",
+          "test_mixed_ecosystem_repo_produces_correct_results_per_dep",
+          "test_parent_session_pypi_tests_all_pass_against_enhanced_mapper"
+        ]
+      }
+    ],
+    "fixture_requirements": [
+      "fixtures/osv_sample.json — at least one known-vulnerable PURL per OSV ecosystem (npm, golang, cargo, composer, hex, pub, swift)",
+      "fixtures/ghsa_sample.json — at least one known-vulnerable pkg:github/<owner>/<repo>@<version> entry",
+      "All fixtures must be deterministic and committed to the enhancement directory"
+    ]
+  },
+
+  "validation_results": {
+    "completeness_score": 95,
+    "feasibility_assessment": "high",
+    "risk_factors": [
+      "Backward compatibility risk if EcosystemVulnerabilityMapper signature drifts from parent VulnerabilityMapper.map_vulnerabilities(deps, cache)",
+      "CPE sanitization risk if implemented in the wrong location (must be in serializers, not in the mapper, to avoid breaking the dependency model used by other parent steps)",
+      "Fixture drift risk: OSV/GHSA fixture data must remain in sync with PURL identifiers produced by parent Syft/Trivy adapters"
+    ],
+    "recommendations": [
+      "Wrap parent CycloneDXSerializer/SPDXSerializer (composition over inheritance) so the parent classes remain untouched and the enhancement's step10_integration can swap the serializer cleanly",
+      "Add an integration test that runs the parent session's full PyPI test suite against the enhanced pipeline to catch regressions early",
+      "Keep dispatch table values as module-level constants (or a single dict) to make adding new ecosystems a one-line change"
+    ],
+    "type2_quality_indicators": {
+      "type2_testing_required": false,
+      "detected_triggers": [],
+      "ai_orchestration_detected": false,
+      "quality_trigger_count": 0,
+      "ai_indicator_count": 0,
+      "_note": "Enhancement is fully deterministic dispatch + cache pattern. No AI/ML, no LLM, no probabilistic matching."
+    },
+    "eu_ai_act_classification": {
+      "auto_classification": "MINIMAL",
+      "auto_score": 0,
+      "classification_factors": ["No AI/ML components", "CLI developer tool", "No decisions affecting persons"],
+      "annex_iii_domain_match": false,
+      "articles_applicable": [],
+      "human_oversight_required": false,
+      "transparency_obligations": [],
+      "documentation_requirements": [],
+      "_inherited_from_parent": true
+    },
+    "sr_11_7_classification": {
+      "applicable": false,
+      "applicability_reason": "CLI developer tooling with no financial-domain model-based decisioning (inherited from parent)",
+      "requires_confirmation": false,
+      "preliminary_indicators": {
+        "financial_domain_detected": false,
+        "model_based_decisioning": false,
+        "regulatory_references": []
+      },
+      "_inherited_from_parent": true
+    },
+    "nist_ai_rmf_classification": {
+      "applicable": false,
+      "risk_profile": "LOW",
+      "genai_profile_applicable": false,
+      "risk_profile_factors": ["No AI/ML components", "Deterministic tool", "Internal developer tooling"],
+      "_inherited_from_parent": true
+    },
+    "ai_safety_requirements": {
+      "requires_fairness_testing": false,
+      "requires_hallucination_testing": false,
+      "requires_prompt_injection_testing": false,
+      "requires_safety_testing": false,
+      "detected_triggers": {
+        "fairness_triggers": [],
+        "hallucination_triggers": [],
+        "safety_triggers": []
+      }
+    }
+  },
+
+  "classification_schema": {
+    "classification_labels": ["nvd", "osv", "ghsa", "none"],
+    "_note": "Dispatch labels for the PURL Type Dispatch Engine — not an AI classification system",
+    "date_based_criteria": false
+  },
+
+  "integration_notes": {
+    "parent_session_path": "outputs/sessions/SBOM-20260409-sb01/",
+    "enhancement_directory": "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/",
+    "integration_strategy": "All new artifacts (caches, mapper, serializer extensions, fixtures, tests) live inside the enhancement directory. A step10_integration.py module in the enhancement directory imports parent classes (NVDCacheManager, CycloneDXSerializer, SPDXSerializer) and composes them with the new components without modifying parent files.",
+    "parent_file_modifications_allowed": false,
+    "_parent_file_modifications_note": "The enhancement MUST NOT edit any file under outputs/sessions/SBOM-20260409-sb01/ that is not under the enhancements/ subdirectory.",
+    "backward_compatibility_test_command": "pytest outputs/sessions/SBOM-20260409-sb01/ -k 'pypi or nvd' — must continue to pass against the integrated build"
+  }
+}

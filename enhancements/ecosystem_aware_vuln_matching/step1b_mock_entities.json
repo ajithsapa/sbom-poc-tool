@@ -1,0 +1,659 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "domain": "Developer Tooling — Software Supply Chain Security",
+    "generated_at": "2026-05-12T00:00:00Z",
+    "source_agent": "step1b-agent-mockdata",
+    "is_enhancement": true,
+    "enhancement_type": "feature_addition",
+    "structural_reference": "parent step1b_mock_entities.json",
+    "schema_notes": [
+      "OSV records use OSV.dev schema (id, aliases, summary, affected[].package{ecosystem,name,purl}, affected[].ranges, severity, references, database_specific).",
+      "GHSA records reuse the OSV schema with ecosystem == 'GitHub Actions' and pkg:github/<owner>/<repo>@<ref> PURLs.",
+      "CPE-pollution exemplars are pre-sanitization component dicts that include fabricated CPE strings produced by Syft's --add-cpes-if-none for non-NVD ecosystems.",
+      "All data is deterministic — no timestamps in record bodies, no random UUIDs."
+    ],
+    "ecosystem_coverage": {
+      "nvd_ecosystems_exercised": ["pypi"],
+      "osv_ecosystems_exercised": ["npm", "golang", "cargo", "composer"],
+      "ghsa_ecosystems_exercised": ["github"]
+    },
+    "entity_count": 17,
+    "ddm_context": {
+      "source": "enhancement-spec",
+      "ledger_entity_count": 5,
+      "ledger_rule_count": 5,
+      "gap_exclusions": [],
+      "coverage_alignment": {
+        "bdd_focus_areas_covered": 5,
+        "risk_scenarios_covered": 3
+      }
+    },
+    "_synthetic_data_disclosure": "Records flagged with database_specific._synthetic=true are illustrative placeholders modelled on plausible advisory shapes — they are not assertions about real published advisories. All other CVE IDs and CVSS scores match publicly known NVD/OSV entries known to this agent's training data."
+  },
+
+  "entities": {
+
+    "OSVVulnerabilityRecord": [
+      {
+        "id": "osv_npm_001",
+        "type": "OSVVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-p6mc-m468-83gw",
+        "aliases": ["CVE-2020-8203"],
+        "summary": "Prototype pollution in lodash",
+        "details": "Versions of lodash prior to 4.17.20 are vulnerable to Prototype Pollution. The functions _.zipObjectDeep allow a malicious user to modify the prototype of Object via {constructor: {prototype: {...}}} causing the addition or modification of an existing property on all objects.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "lodash",
+              "purl": "pkg:npm/lodash"
+            },
+            "ranges": [
+              {
+                "type": "SEMVER",
+                "events": [
+                  {"introduced": "0"},
+                  {"fixed": "4.17.20"}
+                ]
+              }
+            ],
+            "versions": ["4.17.19", "4.17.18", "4.17.17", "4.17.20-prerelease"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-p6mc-m468-83gw"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-1321"],
+          "severity": "HIGH",
+          "_synthetic": false
+        },
+        "_lookup_key": "pkg:npm/lodash@4.17.20",
+        "_notes": "lodash@4.17.20 is exactly the boundary version: introduced=0, fixed=4.17.20. Per OSV semver semantics, 4.17.20 is NOT vulnerable, but 4.17.19 IS. Test fixture targets 4.17.20-prerelease and the boundary case as well."
+      },
+      {
+        "id": "osv_npm_002",
+        "type": "OSVVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-xvch-5gv4-984h",
+        "aliases": ["CVE-2021-44906"],
+        "summary": "Prototype Pollution in minimist",
+        "details": "Minimist prior to 1.2.6 is vulnerable to Prototype Pollution via file index.js, function setKey() (lines 69-95).",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "npm",
+              "name": "minimist",
+              "purl": "pkg:npm/minimist"
+            },
+            "ranges": [
+              {
+                "type": "SEMVER",
+                "events": [
+                  {"introduced": "0"},
+                  {"fixed": "1.2.6"}
+                ]
+              }
+            ],
+            "versions": ["1.2.5"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-44906"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-1321"],
+          "severity": "MEDIUM",
+          "_synthetic": false
+        },
+        "_lookup_key": "pkg:npm/minimist@1.2.5"
+      },
+      {
+        "id": "osv_golang_001",
+        "type": "OSVVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-vvpx-j8f3-3w6h",
+        "aliases": ["CVE-2021-31525"],
+        "summary": "Denial of service in golang.org/x/net/http/httpguts",
+        "details": "ReadRequest and ReadResponse in net/http in Go before 1.15.12 and 1.16.x before 1.16.4 can hit a panic via a header containing an invalid byte. golang.org/x/net before commit 4e3fabe1 inherits this issue.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "Go",
+              "name": "golang.org/x/net",
+              "purl": "pkg:golang/golang.org/x/net"
+            },
+            "ranges": [
+              {
+                "type": "SEMVER",
+                "events": [
+                  {"introduced": "0"},
+                  {"fixed": "0.0.0-20210520170846-37e1c6afe023"}
+                ]
+              }
+            ],
+            "versions": ["0.0.0-20190813141303-74dc4d7220e7"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-vvpx-j8f3-3w6h"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-31525"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-444"],
+          "severity": "HIGH",
+          "_synthetic": false
+        },
+        "_lookup_key": "pkg:golang/golang.org/x/net@0.0.0-20190813141303-74dc4d7220e7"
+      },
+      {
+        "id": "osv_cargo_001",
+        "type": "OSVVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-7rfm-9q6h-x2x4",
+        "aliases": ["CVE-2022-24713"],
+        "summary": "Regex denial of service in the regex crate used by openssl bindings",
+        "details": "The openssl crate prior to 0.10.39 transitively depends on regex < 1.5.5 which allows constructed regular expressions to cause exponential backtracking. An attacker controlling a regex input can trigger pathological CPU usage.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "crates.io",
+              "name": "openssl",
+              "purl": "pkg:cargo/openssl"
+            },
+            "ranges": [
+              {
+                "type": "SEMVER",
+                "events": [
+                  {"introduced": "0"},
+                  {"fixed": "0.10.39"}
+                ]
+              }
+            ],
+            "versions": ["0.10.38"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-7rfm-9q6h-x2x4"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-24713"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-1333"],
+          "severity": "MEDIUM",
+          "_synthetic": true,
+          "_synthetic_reason": "The advisory mapping of CVE-2022-24713 to the openssl crate transitively (vs. directly to the regex crate) is illustrative for dispatch testing; real OSV may file this against the regex crate directly."
+        },
+        "_lookup_key": "pkg:cargo/openssl@0.10.38"
+      },
+      {
+        "id": "osv_composer_001",
+        "type": "OSVVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-754h-5r27-7x3r",
+        "aliases": ["CVE-2020-15094"],
+        "summary": "Symfony HttpKernel: prevent forwarding cookies and authorization headers when fetching sub-requests on different host",
+        "details": "In Symfony 4.4.x before 4.4.13 and 5.1.x before 5.1.5, when forwarding sub-requests to a different host, the framework would forward cookies and the Authorization header. An attacker who could control the sub-request URL could exfiltrate session credentials.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "Packagist",
+              "name": "symfony/http-kernel",
+              "purl": "pkg:composer/symfony/http-kernel"
+            },
+            "ranges": [
+              {
+                "type": "ECOSYSTEM",
+                "events": [
+                  {"introduced": "4.4.0"},
+                  {"fixed": "4.4.13"}
+                ]
+              }
+            ],
+            "versions": ["4.4.7", "4.4.8", "4.4.9", "4.4.10", "4.4.11", "4.4.12"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:N/A:N"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-754h-5r27-7x3r"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-15094"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-200"],
+          "severity": "HIGH",
+          "_synthetic": false
+        },
+        "_lookup_key": "pkg:composer/symfony/http-kernel@4.4.7"
+      }
+    ],
+
+    "GHSAVulnerabilityRecord": [
+      {
+        "id": "ghsa_actions_001",
+        "type": "GHSAVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-mrrh-fwg8-r2c3",
+        "aliases": ["CVE-2025-30066"],
+        "summary": "tj-actions/changed-files leaks secrets via crafted commit messages",
+        "details": "Versions of tj-actions/changed-files prior to v46 allow attackers who can push to or open a PR against the consuming repository to exfiltrate workflow secrets via specially crafted commit messages that are evaluated by the action. Affected workflows print masked secrets into job logs in a way that can be reconstructed from public Actions run logs.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "GitHub Actions",
+              "name": "tj-actions/changed-files",
+              "purl": "pkg:github/tj-actions/changed-files"
+            },
+            "ranges": [
+              {
+                "type": "GIT",
+                "repo": "https://github.com/tj-actions/changed-files",
+                "events": [
+                  {"introduced": "0"},
+                  {"fixed": "46.0.1"}
+                ]
+              }
+            ],
+            "versions": ["v35", "v36", "v37", "v38", "v39", "v40", "v41", "v42", "v43", "v44", "v45"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-mrrh-fwg8-r2c3"},
+          {"type": "WEB", "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-30066"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-200"],
+          "severity": "HIGH",
+          "_synthetic": true,
+          "_synthetic_reason": "CVE-2025-30066 identifier placement, exact GHSA ID, and version range are modelled to be plausible for dispatch testing; verify against the live GHSA database before using in production policy."
+        },
+        "_lookup_key": "pkg:github/tj-actions/changed-files@v35"
+      },
+      {
+        "id": "ghsa_actions_002",
+        "type": "GHSAVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-cqwx-pfm5-2vjp",
+        "aliases": [],
+        "summary": "actions/checkout v3 allows path traversal in repository checkout when ssh-key input contains crafted paths",
+        "details": "Versions of actions/checkout prior to v4.1.0 are vulnerable to a path-traversal condition when the workflow accepts untrusted input into the ssh-key parameter. An attacker controlling the input can cause the action to write the SSH key material outside of the workspace directory. Impact is limited to self-hosted runners where the workspace directory is reused across jobs.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "GitHub Actions",
+              "name": "actions/checkout",
+              "purl": "pkg:github/actions/checkout"
+            },
+            "ranges": [
+              {
+                "type": "GIT",
+                "repo": "https://github.com/actions/checkout",
+                "events": [
+                  {"introduced": "3.0.0"},
+                  {"fixed": "4.1.0"}
+                ]
+              }
+            ],
+            "versions": ["v3", "v3.0.0", "v3.1.0", "v3.2.0", "v3.3.0", "v3.4.0", "v3.5.0", "v3.6.0"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:L/A:N"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-cqwx-pfm5-2vjp"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-22"],
+          "severity": "MEDIUM",
+          "_synthetic": true,
+          "_synthetic_reason": "Hypothetical advisory used to exercise GHSA dispatch and CPE stripping for actions/checkout. Not a real published advisory at the time of fixture authoring."
+        },
+        "_lookup_key": "pkg:github/actions/checkout@v3"
+      },
+      {
+        "id": "ghsa_actions_003",
+        "type": "GHSAVulnerabilityRecord",
+        "schema_version": "1.6.0",
+        "id_field": "GHSA-2j7w-8c5m-r3hf",
+        "aliases": [],
+        "summary": "docker/build-push-action v3 emits build secrets to debug logs when LOG_LEVEL=debug is set on the runner",
+        "details": "Versions of docker/build-push-action prior to v4.0.0 may emit secret values supplied via the secrets input into the runner's debug log output when ACTIONS_RUNNER_DEBUG=true. The values are masked in the workflow log but remain visible in the raw runner debug stream available to runner administrators.",
+        "affected": [
+          {
+            "package": {
+              "ecosystem": "GitHub Actions",
+              "name": "docker/build-push-action",
+              "purl": "pkg:github/docker/build-push-action"
+            },
+            "ranges": [
+              {
+                "type": "GIT",
+                "repo": "https://github.com/docker/build-push-action",
+                "events": [
+                  {"introduced": "3.0.0"},
+                  {"fixed": "4.0.0"}
+                ]
+              }
+            ],
+            "versions": ["v3", "v3.0.0", "v3.1.0", "v3.2.0", "v3.3.0"]
+          }
+        ],
+        "severity": [
+          {
+            "type": "CVSS_V3",
+            "score": "CVSS:3.1/AV:L/AC:H/PR:H/UI:N/S:U/C:L/I:N/A:N"
+          }
+        ],
+        "references": [
+          {"type": "ADVISORY", "url": "https://github.com/advisories/GHSA-2j7w-8c5m-r3hf"}
+        ],
+        "database_specific": {
+          "cwe_ids": ["CWE-532"],
+          "severity": "LOW",
+          "_synthetic": true,
+          "_synthetic_reason": "Hypothetical low-severity advisory used to verify dispatch and that LOW severity items also flow through the GHSA path; not a real published advisory."
+        },
+        "_lookup_key": "pkg:github/docker/build-push-action@v3"
+      }
+    ],
+
+    "MixedEcosystemDependencyList": [
+      {
+        "id": "mixed_repo_deps",
+        "type": "MixedEcosystemDependencyList",
+        "description": "Single repo scan covering all three backends (NVD + OSV + GHSA). Used to assert correct per-dep dispatch.",
+        "scan_id_hint": "scan_enh_001",
+        "expected_dispatch_counts": {
+          "nvd": 2,
+          "osv": 3,
+          "ghsa": 1
+        },
+        "expected_vulnerability_count": 5,
+        "deps": [
+          {
+            "name": "langchain",
+            "exact_version": "0.0.101",
+            "dependency_type": "direct",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": true,
+            "_expected_cve": "CVE-2023-34540"
+          },
+          {
+            "name": "joblib",
+            "exact_version": "0.14.1",
+            "dependency_type": "transitive",
+            "transitive_via": "scikit-learn",
+            "purl": "pkg:pypi/joblib@0.14.1",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": true,
+            "_expected_cve": "CVE-2022-21797"
+          },
+          {
+            "name": "lodash",
+            "exact_version": "4.17.20",
+            "dependency_type": "direct",
+            "purl": "pkg:npm/lodash@4.17.20",
+            "ecosystem": "npm",
+            "_expected_dispatch": "osv",
+            "_expected_vulnerable": false,
+            "_dispatch_only_note": "4.17.20 is the fixed version (boundary). Dispatch routes it to OSV; the OSV matcher returns no record. Test must assert dispatch happened, regardless of match outcome."
+          },
+          {
+            "name": "minimist",
+            "exact_version": "1.2.5",
+            "dependency_type": "transitive",
+            "transitive_via": "lodash",
+            "purl": "pkg:npm/minimist@1.2.5",
+            "ecosystem": "npm",
+            "_expected_dispatch": "osv",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-xvch-5gv4-984h"
+          },
+          {
+            "name": "golang.org/x/net",
+            "exact_version": "0.0.0-20190813141303-74dc4d7220e7",
+            "dependency_type": "direct",
+            "purl": "pkg:golang/golang.org/x/net@0.0.0-20190813141303-74dc4d7220e7",
+            "ecosystem": "golang",
+            "_expected_dispatch": "osv",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-vvpx-j8f3-3w6h"
+          },
+          {
+            "name": "tj-actions/changed-files",
+            "exact_version": "v35",
+            "dependency_type": "direct",
+            "purl": "pkg:github/tj-actions/changed-files@v35",
+            "ecosystem": "github",
+            "_expected_dispatch": "ghsa",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-mrrh-fwg8-r2c3"
+          }
+        ]
+      },
+      {
+        "id": "pypi_only_deps",
+        "type": "MixedEcosystemDependencyList",
+        "description": "Backward-compatibility regression list. Pure PyPI subset of the parent TaskMatrix scan_001 deps. Must produce the SAME vulnerability set as the parent NVD path with zero calls to OSV or GHSA caches.",
+        "scan_id_hint": "scan_enh_002",
+        "expected_dispatch_counts": {
+          "nvd": 5,
+          "osv": 0,
+          "ghsa": 0
+        },
+        "expected_vulnerability_count": 3,
+        "deps": [
+          {
+            "name": "langchain",
+            "exact_version": "0.0.101",
+            "dependency_type": "direct",
+            "purl": "pkg:pypi/langchain@0.0.101",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": true,
+            "_expected_cve": "CVE-2023-34540"
+          },
+          {
+            "name": "requests",
+            "exact_version": "2.27.1",
+            "dependency_type": "transitive",
+            "transitive_via": "langchain",
+            "purl": "pkg:pypi/requests@2.27.1",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": true,
+            "_expected_cve": "CVE-2023-32681"
+          },
+          {
+            "name": "lxml",
+            "exact_version": "4.6.3",
+            "dependency_type": "transitive",
+            "transitive_via": "langchain",
+            "purl": "pkg:pypi/lxml@4.6.3",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": true,
+            "_expected_cve": "CVE-2018-19787"
+          },
+          {
+            "name": "openai",
+            "exact_version": "0.27.2",
+            "dependency_type": "direct",
+            "purl": "pkg:pypi/openai@0.27.2",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": false
+          },
+          {
+            "name": "pydantic",
+            "exact_version": "1.10.4",
+            "dependency_type": "transitive",
+            "transitive_via": "langchain",
+            "purl": "pkg:pypi/pydantic@1.10.4",
+            "ecosystem": "pypi",
+            "_expected_dispatch": "nvd",
+            "_expected_vulnerable": false
+          }
+        ]
+      },
+      {
+        "id": "github_actions_only_deps",
+        "type": "MixedEcosystemDependencyList",
+        "description": "Pure GitHub Actions dep list. Verifies GHSA dispatch path in isolation and asserts that the resulting SBOM components have ZERO cpe field after sanitization.",
+        "scan_id_hint": "scan_enh_003",
+        "expected_dispatch_counts": {
+          "nvd": 0,
+          "osv": 0,
+          "ghsa": 3
+        },
+        "expected_vulnerability_count": 3,
+        "expected_cpe_count_in_output_sbom": 0,
+        "deps": [
+          {
+            "name": "tj-actions/changed-files",
+            "exact_version": "v35",
+            "dependency_type": "direct",
+            "purl": "pkg:github/tj-actions/changed-files@v35",
+            "ecosystem": "github",
+            "_expected_dispatch": "ghsa",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-mrrh-fwg8-r2c3"
+          },
+          {
+            "name": "actions/checkout",
+            "exact_version": "v3",
+            "dependency_type": "direct",
+            "purl": "pkg:github/actions/checkout@v3",
+            "ecosystem": "github",
+            "_expected_dispatch": "ghsa",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-cqwx-pfm5-2vjp"
+          },
+          {
+            "name": "docker/build-push-action",
+            "exact_version": "v3",
+            "dependency_type": "direct",
+            "purl": "pkg:github/docker/build-push-action@v3",
+            "ecosystem": "github",
+            "_expected_dispatch": "ghsa",
+            "_expected_vulnerable": true,
+            "_expected_advisory": "GHSA-2j7w-8c5m-r3hf"
+          }
+        ]
+      }
+    ],
+
+    "CPEPollutionExemplar": [
+      {
+        "id": "cpe_pollution_github_001",
+        "type": "CPEPollutionExemplar",
+        "description": "GitHub Action component as emitted by Syft with --add-cpes-if-none. Contains a fabricated CPE that does not correspond to any NVD entry. The CPE sanitization engine MUST remove the cpe field before serialization while preserving the purl.",
+        "ecosystem": "github",
+        "pre_sanitization_component": {
+          "name": "actions/cache",
+          "version": "v4",
+          "purl": "pkg:github/actions/cache@v4",
+          "cpe": "cpe:2.3:a:actions\\/cache:actions\\/cache:v4:*:*:*:*:*:*:*",
+          "type": "library",
+          "supplier": "GitHub"
+        },
+        "expected_post_sanitization_component": {
+          "name": "actions/cache",
+          "version": "v4",
+          "purl": "pkg:github/actions/cache@v4",
+          "type": "library",
+          "supplier": "GitHub"
+        },
+        "_assertion": "After CPESanitizer.sanitize() is applied during CycloneDXSerializer.serialize, the component dict must NOT contain a 'cpe' key. The 'purl' key must remain unchanged."
+      },
+      {
+        "id": "cpe_pollution_npm_001",
+        "type": "CPEPollutionExemplar",
+        "description": "npm component as emitted by Syft with --add-cpes-if-none for a non-NVD ecosystem. The CPE was fabricated by Syft from the package name (no NVD entry actually exists with this CPE).",
+        "ecosystem": "npm",
+        "pre_sanitization_component": {
+          "name": "lodash",
+          "version": "4.17.20",
+          "purl": "pkg:npm/lodash@4.17.20",
+          "cpe": "cpe:2.3:a:lodash:lodash:4.17.20:*:*:*:*:node.js:*:*",
+          "type": "library",
+          "supplier": "Lodash Contributors"
+        },
+        "expected_post_sanitization_component": {
+          "name": "lodash",
+          "version": "4.17.20",
+          "purl": "pkg:npm/lodash@4.17.20",
+          "type": "library",
+          "supplier": "Lodash Contributors"
+        },
+        "_assertion": "After CPESanitizer.sanitize() runs, no 'cpe' key remains. The PURL is preserved so downstream OSV lookups still work."
+      }
+    ],
+
+    "PurlDispatchTableFixture": [
+      {
+        "id": "purl_dispatch_table_001",
+        "type": "PurlDispatchTableFixture",
+        "description": "Authoritative dispatch table fixture mirroring the dispatch decision table specified in step1_requirements.engines_and_rules. Loaded by EcosystemVulnerabilityMapper at construction time.",
+        "table": {
+          "nvd_ecosystems": ["pypi", "nuget", "maven", "gem", "deb", "rpm", "apk"],
+          "osv_ecosystems": ["npm", "golang", "cargo", "composer", "hex", "pub", "swift"],
+          "ghsa_ecosystems": ["github"],
+          "fallback": "skip_with_log_warning"
+        },
+        "_invariants": [
+          "Every ecosystem string is lowercase",
+          "No ecosystem appears in more than one set",
+          "fallback value is one of: 'skip_with_log_warning', 'return_empty', 'raise_error'"
+        ]
+      }
+    ]
+
+  }
+}

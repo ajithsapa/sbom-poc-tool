@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "step": "step9",
+    "phase": "TDD_GREEN_PHASE_2_ORCHESTRATION",
+    "is_enhancement": true,
+    "created_at": "2026-05-12T00:00:00Z",
+    "version": "1.0.0"
+  },
+  "subject_under_test": {
+    "class": "EcosystemScanOrchestrator",
+    "module": "step9_tdd_green_phase_orchestration",
+    "pattern": "Pattern A (composition over inheritance)",
+    "extends_parent": false,
+    "parent_orchestrator_class": "ScanOrchestrator",
+    "constructor_signatures_supported": [
+      "rich Pattern-A: tool_runner, adapters, deduplicator, ecosystem_mapper, remediation_enricher, vex_filter, serializers, workflow_state_machine, caches, logger, fallback_orchestrator",
+      "simple Step-7 ATDD: nvd_cache, osv_cache, ghsa_cache, tool_runner"
+    ]
+  },
+  "parent_components_composed": {
+    "from_step9": [
+      "ScanOrchestrator",
+      "NVDSyncOrchestrator",
+      "CLIOrchestrator",
+      "WorkflowStateMachine",
+      "NVDWorkflowStateMachine",
+      "ScanWorkflowState",
+      "NVDSyncWorkflowState",
+      "ScanResult",
+      "SyncResult"
+    ],
+    "from_step6": [
+      "OSSToolAdapter",
+      "RemediationEnricher",
+      "VEXFilter",
+      "NVDSyncError"
+    ]
+  },
+  "enhancement_components_used": {
+    "from_step6_business": [
+      "EcosystemVulnerabilityMapper",
+      "OSVCache",
+      "GHSACache",
+      "OSVCacheNotSyncedError",
+      "GHSACacheNotSyncedError",
+      "OSVSyncResult",
+      "CPESanitizer",
+      "CycloneDXSerializer (cpe_sanitize=True)",
+      "SPDXSerializer (cpe_sanitize=True)"
+    ]
+  },
+  "design_invariants": {
+    "composition_not_inheritance": "EcosystemScanOrchestrator is NOT a subclass of parent ScanOrchestrator",
+    "zero_io_in_constructor": "No tool runs, cache lookups, serializer calls or state transitions during __init__",
+    "no_cache_sync_in_orchestrator": "Caller is responsible for sync; orchestrator never calls OSVCache.sync() or GHSACache.sync()",
+    "state_machine_per_run": "Default WorkflowStateMachine is reset at the start of each run_scan; injected mocks are preserved across runs",
+    "format_dispatch_case_insensitive": "'CycloneDX', 'cyclonedx', 'CYCLONEDX' all dispatch to the cyclonedx serializer",
+    "unknown_format_raises_value_error": "Error message lists SUPPORTED_FORMATS",
+    "errors_propagate_unwrapped": "OSVCacheNotSyncedError, GHSACacheNotSyncedError, NVDSyncError, RuntimeError all propagate without wrapping",
+    "deterministic_output": "Verbatim string serializer output is timestamp-free; two runs against the same inputs produce byte-equal SBOMs"
+  },
+  "test_results": {
+    "step4_atdd_business": {"passed": 34, "failed": 0, "total": 34, "regression": true},
+    "step5_tdd_red_phase_business_tests": {"passed": 97, "failed": 0, "total": 97, "regression": true},
+    "step7_atdd_orchestration": {"passed": 57, "failed": 0, "total": 57, "_note": "34 inherited from step4 + 23 new orchestration ATDD tests"},
+    "step8_tdd_red_phase_orchestration_tests": {"passed": 50, "skipped": 1, "failed": 0, "total": 51, "_skip_reason": "test_state_machine_is_parent_class_not_custom_subclass skips when SM is a MagicMock (tolerant fixture)"},
+    "total_enhancement_tests_passing": 238,
+    "total_enhancement_tests_with_skips": 239,
+    "parent_regression_baseline": {
+      "passed": 519,
+      "failed_pre_existing": 163,
+      "_note": "Parent failures are pre-existing and unrelated to this enhancement (verified by stashing enhancement files and re-running; identical fail/pass counts)"
+    }
+  },
+  "files_produced": {
+    "implementation": "step9_tdd_green_phase_orchestration.py",
+    "metadata": "step9_orchestration_metadata.json",
+    "conftest": "conftest.py (sys.path ordering so the enhancement file is preferred over the parent namesake)"
+  },
+  "files_unchanged": {
+    "parent_session": "No files under outputs/sessions/SBOM-20260409-sb01/ (excluding enhancements/) were modified by this step",
+    "enhancement_step6": "step6_tdd_green_phase_business.py was consumed verbatim",
+    "enhancement_step7": "step7_atdd_orchestration.py was consumed verbatim",
+    "enhancement_step8": "step8_tdd_red_phase_orchestration_tests.py was consumed verbatim"
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "step": 8,
+    "phase": "TDD Red Phase 2 — Orchestration Unit Tests",
+    "is_enhancement": true,
+    "generated_at": "2026-05-12T00:00:00Z",
+    "test_file": "step8_tdd_red_phase_orchestration_tests.py",
+    "subject_under_test": "EcosystemScanOrchestrator (to be implemented in enhancement Step 9)",
+    "subject_module": "step9_tdd_green_phase_orchestration.py (NOT YET PRESENT)",
+    "test_framework": "pytest"
+  },
+
+  "input_artifacts": {
+    "step1_requirements": "step1_requirements.json",
+    "step1b_mock_entities": "step1b_mock_entities.json",
+    "step6_business_logic": "step6_tdd_green_phase_business.py",
+    "step7_orchestration_atdd": "step7_atdd_orchestration.py",
+    "parent_step8_reference": "../../step8_tdd_red_phase_orchestration_tests.py",
+    "parent_step9_orchestrator_module": "../../step9_tdd_green_phase_orchestration.py"
+  },
+
+  "scope": {
+    "distinction_from_step7_atdd": {
+      "step7_atdd_scope": "End-to-end acceptance tests exercising EcosystemScanOrchestrator.run_scan() with real Step 6 caches and fixture-driven dep lists (23 acceptance tests).",
+      "step8_red_scope": "Unit tests on orchestrator internals: constructor wiring, helper method call order, state machine transitions, error propagation, serializer dispatch — every injected dep mocked via MagicMock(spec=...) for type-strict mocking."
+    },
+    "tested_components": [
+      "EcosystemScanOrchestrator.__init__",
+      "EcosystemScanOrchestrator.run_scan",
+      "EcosystemScanOrchestrator._gather_deps (implicit via call-order tests)",
+      "EcosystemScanOrchestrator._match_vulnerabilities (implicit via mapper.call_args)",
+      "EcosystemScanOrchestrator._enrich_and_filter (implicit via enricher + vex call counts)",
+      "EcosystemScanOrchestrator._serialize (implicit via serializer dispatch tests)",
+      "EcosystemScanOrchestrator._emit_state (implicit via state machine transition asserts)"
+    ],
+    "out_of_scope": [
+      "Business-logic correctness of EcosystemVulnerabilityMapper (covered by Step 5)",
+      "OSVCache / GHSACache file-loading behaviour (covered by Step 5)",
+      "End-to-end SBOM byte-equality across runs (covered by Step 7 ATDD)",
+      "Parent ScanOrchestrator internals (not modified by this enhancement)"
+    ]
+  },
+
+  "test_classes": [
+    {
+      "class": "TestEcosystemScanOrchestratorConstructor",
+      "count": 10,
+      "focus": "Dependency injection, attribute storage, lazy construction guarantees",
+      "tests": [
+        "test_accepts_all_required_dependencies",
+        "test_stores_injected_deps_as_attributes",
+        "test_raises_when_required_dep_missing",
+        "test_accepts_serializers_as_dict_and_stores_both_formats",
+        "test_accepts_caches_as_dict_of_three",
+        "test_default_output_format_is_cyclonedx",
+        "test_constructor_does_not_call_backends_synchronously",
+        "test_initial_workflow_state_is_parent_initial",
+        "test_orchestrator_does_not_inherit_from_parent_scan_orchestrator",
+        "test_constructor_accepts_optional_logger"
+      ]
+    },
+    {
+      "class": "TestEcosystemScanOrchestratorRunScanFlow",
+      "count": 15,
+      "focus": "run_scan() pipeline call order, mock invocation counts, exception propagation",
+      "tests": [
+        "test_run_scan_invokes_pipeline_in_order",
+        "test_gather_deps_calls_tool_runner_then_adapter_then_deduplicator",
+        "test_match_vulnerabilities_invokes_ecosystem_mapper",
+        "test_match_vulnerabilities_passes_caches_dict_or_individual_caches",
+        "test_enrich_and_filter_runs_enricher_then_vex",
+        "test_serialize_selects_correct_serializer_for_cyclonedx",
+        "test_serialize_selects_correct_serializer_for_spdx",
+        "test_selected_serializer_was_built_with_cpe_sanitize_true",
+        "test_state_machine_visits_canonical_states",
+        "test_exception_in_gather_deps_transitions_to_failed_or_propagates",
+        "test_osv_cache_not_synced_error_propagates_from_match",
+        "test_exception_in_serialize_does_not_corrupt_state",
+        "test_run_scan_returns_scan_result_shape",
+        "test_run_scan_is_deterministic_across_two_calls",
+        "test_run_scan_rejects_unknown_output_format"
+      ]
+    },
+    {
+      "class": "TestCacheWiring",
+      "count": 8,
+      "focus": "How the orchestrator injects its three caches into the ecosystem mapper",
+      "tests": [
+        "test_mapper_receives_all_three_caches",
+        "test_osv_cache_is_osv_cache_instance_not_raw_dict",
+        "test_ghsa_cache_is_ghsa_cache_instance_not_raw_dict",
+        "test_nvd_cache_is_dict_or_cache_manager",
+        "test_legacy_dict_cache_is_tolerated",
+        "test_orchestrator_does_not_sync_osv_cache",
+        "test_orchestrator_does_not_sync_ghsa_cache",
+        "test_propagates_cache_not_synced_errors_cleanly"
+      ]
+    },
+    {
+      "class": "TestSerializerWiring",
+      "count": 7,
+      "focus": "CycloneDX / SPDX serializer selection, cpe_sanitize configuration, duck typing",
+      "tests": [
+        "test_default_cyclonedx_serializer_has_cpe_sanitize_true",
+        "test_default_spdx_serializer_has_cpe_sanitize_true",
+        "test_caller_can_inject_custom_serializer",
+        "test_injected_serializer_must_have_serialize_method",
+        "test_serializer_receives_scan_data_dict",
+        "test_serialize_output_is_returned_unmodified",
+        "test_format_dispatch_is_case_insensitive"
+      ]
+    },
+    {
+      "class": "TestStateMachineIntegration",
+      "count": 6,
+      "focus": "Reuse of parent WorkflowStateMachine, state transitions, exception path state recording",
+      "tests": [
+        "test_orchestrator_uses_a_workflow_state_machine_instance",
+        "test_emit_state_calls_state_machine_transition",
+        "test_exception_path_records_failed_state_or_propagates",
+        "test_visited_states_are_in_canonical_order",
+        "test_independent_orchestrators_have_independent_state_machines",
+        "test_state_machine_is_parent_class_not_custom_subclass"
+      ]
+    },
+    {
+      "class": "TestBackwardCompat",
+      "count": 5,
+      "focus": "Parent ScanOrchestrator regression, CLIOrchestrator integration, ScanResult contract preservation",
+      "tests": [
+        "test_parent_scan_orchestrator_construction_still_works",
+        "test_orchestrator_can_accept_parent_fallback",
+        "test_cli_orchestrator_can_be_constructed_with_ecosystem_orchestrator",
+        "test_scan_result_field_names_are_parent_compatible",
+        "test_parent_step9_module_signatures_unchanged"
+      ]
+    }
+  ],
+
+  "totals": {
+    "test_classes": 6,
+    "tests": 51,
+    "exceeds_step7_atdd_count": true,
+    "step7_atdd_test_count": 23,
+    "step8_unit_test_count": 51,
+    "expected_outcome_on_first_run": "ALL 51 TESTS FAIL (Red Phase) — Step 9 enhancement orchestrator does not exist yet"
+  },
+
+  "red_phase_verification": {
+    "collection_status": "PASS (51 tests collected, 0 collection errors)",
+    "execution_status_summary": "20 failed + 31 errors = 51 non-passing; 0 passed",
+    "passing_tests": 0,
+    "_note": "Errors arise from fixtures calling pytest.fail() inside _require_orchestrator() when step9_tdd_green_phase_orchestration.py is absent in the enhancement directory. Errors and failures are both valid Red-phase signals — pytest treats both as non-passing for the build."
+  },
+
+  "tolerance_design": {
+    "constructor_shape": "Tests use _build_rich_orchestrator() which first tries the rich Pattern-A constructor (tool_runner, adapters, deduplicator, ecosystem_mapper, remediation_enricher, vex_filter, serializers, workflow_state_machine, caches) and falls back to the Step-7-ATDD signature (nvd_cache, osv_cache, ghsa_cache, tool_runner) if Step 9 implemented the simpler form.",
+    "attribute_names": "Where the orchestrator could plausibly expose a dep under several attribute names (e.g. workflow_state_machine vs state_machine), tests probe ALL canonical spellings before failing.",
+    "subclass_vs_compose": "Test 1.9 (inheritance check) xfails (does not break the build) when Pattern B (subclass) is used — Pattern A (composition) is preferred but Pattern B is acceptable.",
+    "case_insensitive_format": "Test 4.7 xfails for non-canonical case if the orchestrator chose strict case-sensitive dispatch."
+  },
+
+  "mocking_strategy": {
+    "spec_based_mocks": [
+      "MagicMock(spec=OSVCache) for OSV cache fixtures (rejects calls outside the real interface)",
+      "MagicMock(spec=GHSACache) for GHSA cache fixtures",
+      "MagicMock(spec=EcosystemVulnerabilityMapper) for the mapper fixture"
+    ],
+    "behavioural_mocks": [
+      "Tool runner: callable mock returning a Syft-shaped dict (built from step1b mixed_repo_deps fixture)",
+      "Adapters: dict of MagicMocks exposing normalise()",
+      "Deduplicator: passthrough side_effect (returns deps unchanged)",
+      "Vex filter: returns FilterResult-like (active=input, suppressed=[])",
+      "Serializers: dict of MagicMocks exposing serialize() and a cpe_sanitize attribute (preset True)",
+      "Workflow state machine: side_effect tracks transitions to a local list, exposes visited_states()"
+    ],
+    "no_live_network": true,
+    "_no_live_network_note": "Per CI guarantee in step1_requirements.constraints.technical.no_live_network_in_ci — zero outbound network calls from the test module or any fixture."
+  },
+
+  "anti_hardcoding_posture": {
+    "fixture_derived": [
+      "Sample components are built from step1b_mock_entities.MixedEcosystemDependencyList.mixed_repo_deps",
+      "Dispatch table fixture loaded from step1b_mock_entities.PurlDispatchTableFixture"
+    ],
+    "spec_contracts": [
+      "Workflow state names taken directly from parent ScanWorkflowState enum",
+      "Exception class names taken directly from Step 6 (OSVCacheNotSyncedError, GHSACacheNotSyncedError) and parent module (NVDSyncError)",
+      "Output format identifiers ('cyclonedx', 'spdx') are spec contracts"
+    ]
+  },
+
+  "expected_step9_contract": {
+    "class_name": "EcosystemScanOrchestrator",
+    "module": "step9_tdd_green_phase_orchestration.py (inside the enhancement directory)",
+    "preferred_constructor_signature": "EcosystemScanOrchestrator(tool_runner, adapters, deduplicator, ecosystem_mapper, remediation_enricher, vex_filter, serializers, workflow_state_machine, caches, logger=None, fallback_orchestrator=None)",
+    "fallback_constructor_signature_accepted": "EcosystemScanOrchestrator(nvd_cache, osv_cache, ghsa_cache, tool_runner)",
+    "public_api": "run_scan(repo_path: str, output_format: str = 'cyclonedx') -> ScanResult",
+    "return_type_contract": "Parent ScanResult dataclass (dependencies, active_vulns, suppressed_vulns, warnings, sbom_document, workflow_states_visited, scan_id, repo_name, output_format)",
+    "must_not_modify_parent_files": true
+  },
+
+  "constraints_honoured": [
+    "Did not implement the orchestrator (Step 9's job)",
+    "Did not modify any parent session file",
+    "Did not use live network in tests or fixtures",
+    "Did not spawn sub-agents",
+    "Did not use web search"
+  ]
+}

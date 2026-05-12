@@ -1,0 +1,205 @@
+{
+  "metadata": {
+    "session_id": "SBOM-20260409-sb01-ecosystem_aware_vuln_matching",
+    "parent_session_id": "SBOM-20260409-sb01",
+    "enhancement_name": "ecosystem_aware_vuln_matching",
+    "step": "step4_atdd_business",
+    "generated_at": "2026-05-12T00:00:00Z",
+    "source_agent": "step4-agent-atdd-1-business",
+    "is_enhancement": true,
+    "enhancement_type": "feature_addition",
+    "test_file": "step4_atdd_business.py",
+    "domain": "Developer Tooling — Software Supply Chain Security"
+  },
+
+  "subjects_under_test": [
+    {
+      "class": "EcosystemVulnerabilityMapper",
+      "module": "step6_tdd_green_phase_business",
+      "public_signature": "map_vulnerabilities(deps: list, cache: dict | None) -> list",
+      "status": "not_yet_implemented (Step 6 will create)",
+      "responsibility": "PURL-type dispatch to NVD/OSV/GHSA backends; merges results into the parent-compatible record shape"
+    },
+    {
+      "class": "OSVCache",
+      "module": "step6_tdd_green_phase_business",
+      "public_signature": "sync(source_path: str) -> Any; lookup(purl: str) -> dict | list | None; is_synced() -> bool",
+      "status": "not_yet_implemented",
+      "responsibility": "File-backed cache mirroring NVDCacheManager pattern, keyed by PURL"
+    },
+    {
+      "class": "GHSACache",
+      "module": "step6_tdd_green_phase_business",
+      "public_signature": "same shape as OSVCache; keyed by pkg:github/<owner>/<repo>@<ref> PURLs",
+      "status": "not_yet_implemented",
+      "responsibility": "File-backed cache for GitHub Advisory Database records"
+    },
+    {
+      "class": "CPESanitizer",
+      "module": "step6_tdd_green_phase_business",
+      "public_signature": "sanitize_components(components: list, dispatch_table: dict) -> list",
+      "status": "not_yet_implemented",
+      "responsibility": "Strip cpe field from components whose PURL type is not in the NVD-indexed set; never mutate input"
+    },
+    {
+      "class": "OSVCacheNotSyncedError",
+      "module": "step6_tdd_green_phase_business",
+      "kind": "exception",
+      "raised_when": "OSVCache.lookup is called before OSVCache.sync"
+    },
+    {
+      "class": "GHSACacheNotSyncedError",
+      "module": "step6_tdd_green_phase_business",
+      "kind": "exception",
+      "raised_when": "GHSACache.lookup is called before GHSACache.sync"
+    }
+  ],
+
+  "test_classes": [
+    {
+      "name": "TestDispatchByPurlType",
+      "bdd_rule": "Dispatch By PURL Type",
+      "bdd_scenarios_covered": [1, 2, 3, 4, 5],
+      "test_count_functions": 6,
+      "test_count_collected": 6,
+      "capabilities_tested": ["CAP-DISPATCH", "CAP-NVD-PRESERVED", "CAP-OSV", "CAP-GHSA", "CAP-O1-DISPATCH"]
+    },
+    {
+      "name": "TestPreservePyPINvdPath",
+      "bdd_rule": "Preserve PyPI NVD Path",
+      "bdd_scenarios_covered": [6, 7, 8],
+      "test_count_functions": 4,
+      "test_count_collected": 5,
+      "parametrize_expansions": {"test_parent_cves_remain_detectable_through_enhanced_mapper": 2},
+      "capabilities_tested": ["CAP-NVD-PRESERVED", "CAP-DISPATCH", "CAP-CACHE-PATTERN"]
+    },
+    {
+      "name": "TestStripFabricatedCpes",
+      "bdd_rule": "Strip Fabricated CPEs From SBOM Output",
+      "bdd_scenarios_covered": [9, 10],
+      "test_count_functions": 4,
+      "test_count_collected": 8,
+      "parametrize_expansions": {"test_cpe_stripped_for_each_non_nvd_ecosystem": 5},
+      "capabilities_tested": ["CAP-CPE-SANITIZE"]
+    },
+    {
+      "name": "TestNoLiveNetworkInCi",
+      "bdd_rule": "No Live Network In CI",
+      "bdd_scenarios_covered": [11, 12, 13, 14],
+      "test_count_functions": 5,
+      "test_count_collected": 5,
+      "capabilities_tested": ["CAP-DISPATCH"]
+    },
+    {
+      "name": "TestCacheSyncRequiredBeforeLookup",
+      "bdd_rule": "Cache Sync Required Before Lookup",
+      "bdd_scenarios_covered": [15, 16, 17],
+      "test_count_functions": 6,
+      "test_count_collected": 6,
+      "capabilities_tested": ["CAP-CACHE-PATTERN", "CAP-OSV", "CAP-GHSA"]
+    },
+    {
+      "name": "TestEndToEndMultiEcosystemIntegration",
+      "bdd_rule": "End-to-End Multi-Ecosystem Integration With Serialization",
+      "bdd_scenarios_covered": [18, 19],
+      "test_count_functions": 4,
+      "test_count_collected": 4,
+      "capabilities_tested": [
+        "CAP-DISPATCH", "CAP-OSV", "CAP-GHSA", "CAP-NVD-PRESERVED", "CAP-CPE-SANITIZE", "CAP-O1-DISPATCH"
+      ]
+    }
+  ],
+
+  "coverage_summary": {
+    "bdd_scenarios_total": 19,
+    "bdd_scenarios_covered": 19,
+    "bdd_coverage_pct": 100,
+    "test_functions_total": 29,
+    "tests_collected_total": 34,
+    "tests_collected_breakdown_note": "29 unique test functions; pytest parametrize expansion adds 5 extra cases (4 from test_cpe_stripped_for_each_non_nvd_ecosystem, 1 from test_parent_cves_remain_detectable_through_enhanced_mapper)",
+    "minimum_required_by_step1": 15,
+    "meets_minimum": true,
+    "test_classes_count": 6
+  },
+
+  "capability_to_test_map": {
+    "CAP-DISPATCH":       ["TestDispatchByPurlType.*", "TestPreservePyPINvdPath.*", "TestNoLiveNetworkInCi.*", "TestEndToEndMultiEcosystemIntegration.*"],
+    "CAP-OSV":            ["TestDispatchByPurlType.test_npm_*", "TestDispatchByPurlType.test_golang_*", "TestCacheSyncRequiredBeforeLookup.test_osv_*", "TestEndToEndMultiEcosystemIntegration.*"],
+    "CAP-GHSA":           ["TestDispatchByPurlType.test_github_action_*", "TestCacheSyncRequiredBeforeLookup.test_ghsa_*", "TestEndToEndMultiEcosystemIntegration.*"],
+    "CAP-NVD-PRESERVED":  ["TestDispatchByPurlType.test_pypi_*", "TestPreservePyPINvdPath.*", "TestEndToEndMultiEcosystemIntegration.*"],
+    "CAP-CPE-SANITIZE":   ["TestStripFabricatedCpes.*", "TestEndToEndMultiEcosystemIntegration.*"],
+    "CAP-CACHE-PATTERN":  ["TestCacheSyncRequiredBeforeLookup.*"],
+    "CAP-O1-DISPATCH":    ["TestDispatchByPurlType.*", "TestEndToEndMultiEcosystemIntegration.test_two_runs_*"]
+  },
+
+  "anti_hardcoding": {
+    "compliance_score": 0.92,
+    "decisions": [
+      "Dispatch counts and expected vulnerability id sets in the mixed/pyPI-only scenarios are read from step1b_mock_scenarios.json (scenario_enh_001 and scenario_enh_002) rather than inlined as constants.",
+      "Expected OSV/GHSA advisory ids in per-ecosystem dispatch tests are pulled from the fixture record by ecosystem filter (e.g. `r['affected'][0]['package']['ecosystem'] == 'Go'`) rather than typed directly.",
+      "The CPE-pollution exemplar test iterates step1b_mock_entities.json entities.CPEPollutionExemplar[] and asserts each fixture's expected_post_sanitization_component, so adding a new exemplar entry expands coverage automatically with no test edit.",
+      "Ecosystem membership in cpe-strip tests is derived from dispatch_table['nvd_ecosystems'] at runtime — adding 'nuget' to that list would automatically extend the CPE-retention guarantee without touching the test.",
+      "Fabricated CPE strings in the integration test are synthesised from each dep's name and exact_version, so new fixtures contribute new components without per-component test code."
+    ],
+    "remaining_hardcoded_values_and_rationale": [
+      "Exception class names (OSVCacheNotSyncedError, GHSACacheNotSyncedError) — these ARE the contract; cannot be parameterised away.",
+      "Log code substrings ('sync', 'unknownftype', 'not-a-purl-at-all', 'mystery-pkg') — these are the literal test inputs the BDD scenarios assert on.",
+      "Five parametrize cases in test_cpe_stripped_for_each_non_nvd_ecosystem inline (ecosystem, purl, fabricated_cpe) triples — these are intentionally enumerated because the test asserts coverage of the OSV+GHSA ecosystem set.",
+      "PURL string 'pkg:npm/express@4.18.2' in idempotency clean-lookup test — this is a deliberately-absent PURL used to assert that lookup returns empty on miss."
+    ]
+  },
+
+  "red_phase_expectations": {
+    "tests_must_fail_initially": true,
+    "reason": "step6_tdd_green_phase_business.py does not exist in the enhancement directory yet. The import block in step4_atdd_business.py catches the ImportError and routes every test to _require_implementation() which calls pytest.fail with a clear message naming the missing module and classes.",
+    "first_run_expected_outcome": "29 failures (or 34 with parametrize expansion), each with the message 'Step 6 implementation not yet present in enhancement directory...'",
+    "validation_command": "pytest outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step4_atdd_business.py -v"
+  },
+
+  "scope_boundary_assertions": [
+    "Parent session files under outputs/sessions/SBOM-20260409-sb01/ that are not under enhancements/ are NOT modified or imported directly by this test file.",
+    "Tests use a local nvd_cache_seed fixture (dict-of-dicts) rather than importing parent NVDCacheManager, keeping the enhancement test suite hermetic.",
+    "test_enhancement_module_does_not_import_live_network_libraries enforces the 'No Live Network In CI' rule by parsing the Step 6 module source for forbidden imports."
+  ],
+
+  "dependencies": {
+    "inputs_read": [
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step1_requirements.json",
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step1b_mock_entities.json",
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step1b_mock_scenarios.json",
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step2_bdd_scenarios.feature",
+      "outputs/sessions/SBOM-20260409-sb01/step4_atdd_business.py (style reference only — not imported)"
+    ],
+    "outputs_written": [
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step4_atdd_business.py",
+      "outputs/sessions/SBOM-20260409-sb01/enhancements/ecosystem_aware_vuln_matching/step4_atdd_business_metadata.json"
+    ],
+    "next_step_inputs_required": [
+      "Step 5 (red phase 1) will use this file as the acceptance bar; Step 6 (green phase 1) will create step6_tdd_green_phase_business.py to make these tests pass."
+    ]
+  },
+
+  "tdd_red1_handoff": {
+    "expected_module": "step6_tdd_green_phase_business.py (lives in the enhancement directory)",
+    "required_symbols": [
+      "EcosystemVulnerabilityMapper",
+      "OSVCache",
+      "GHSACache",
+      "OSVCacheNotSyncedError",
+      "GHSACacheNotSyncedError",
+      "CPESanitizer"
+    ],
+    "key_contracts": {
+      "EcosystemVulnerabilityMapper.__init__": "(nvd_cache: dict, osv_cache: OSVCache, ghsa_cache: GHSACache, dispatch_table: dict)",
+      "EcosystemVulnerabilityMapper.map_vulnerabilities": "(deps: list, cache: dict | None) -> list[dict]; each result has either 'source' or 'backend' set to one of {'nvd','osv','ghsa'} and an id field of 'cve_id' / 'advisory_id' / 'id_field' / 'id'",
+      "OSVCache.lookup": "Returns dict (or list) for vulnerable PURL; None / [] / {} for clean PURL; raises OSVCacheNotSyncedError when not synced",
+      "GHSACache.lookup": "Symmetric with OSVCache",
+      "CPESanitizer.sanitize_components": "Returns a NEW list; non-NVD components have cpe key removed; original list is not mutated"
+    },
+    "warning_codes_required": [
+      "dispatch.unknown_purl_type",
+      "dispatch.missing_purl",
+      "dispatch.malformed_purl"
+    ]
+  }
+}
