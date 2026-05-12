@@ -114,17 +114,6 @@ def _dir_size(path: Path) -> int:
     return total
 
 
-def _force_rmtree(target: Path) -> None:
-    """rmtree that survives Windows's read-only files in .git/objects/pack."""
-    def _force_writable(func, path, exc_info):
-        try:
-            os.chmod(path, 0o700)
-            func(path)
-        except Exception:
-            pass
-    shutil.rmtree(target, onerror=_force_writable)
-
-
 class CloneManager:
     """
     Manages the workspace of cloned repos under a single root directory.
@@ -213,8 +202,6 @@ class CloneManager:
         env = os.environ.copy()
         env["GIT_TERMINAL_PROMPT"] = "0"
         env["GIT_ASKPASS"] = "echo"
-        # On Windows, also suppress the GUI credential helper.
-        env["GCM_INTERACTIVE"] = "Never"
 
         cmd = [
             "git", "clone",
@@ -238,14 +225,14 @@ class CloneManager:
         except subprocess.TimeoutExpired as exc:
             # Best-effort cleanup of any partial clone.
             if target.exists():
-                _force_rmtree(target)
+                shutil.rmtree(target)
             raise GitCloneError(
                 f"git clone timed out after {self.clone_timeout_seconds}s"
             ) from exc
 
         if proc.returncode != 0:
             if target.exists():
-                _force_rmtree(target)
+                shutil.rmtree(target)
             stderr = (proc.stderr or "").strip().splitlines()
             # Surface the last meaningful stderr line; skip generic progress noise.
             last = stderr[-1] if stderr else "git clone failed"
@@ -256,7 +243,7 @@ class CloneManager:
         if self.max_bytes and self.max_bytes > 0:
             size = _dir_size(target)
             if size > self.max_bytes:
-                _force_rmtree(target)
+                shutil.rmtree(target)
                 raise RepoTooLargeError(
                     f"Cloned repo is {size:,} bytes, which exceeds the configured "
                     f"size cap of {self.max_bytes:,} bytes. The clone has been deleted. "
@@ -288,4 +275,4 @@ class CloneManager:
         target = self._resolve_safe(name)
         if not target.is_dir():
             raise GitCloneError(f"No clone named {name!r}")
-        _force_rmtree(target)
+        shutil.rmtree(target)
