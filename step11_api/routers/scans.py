@@ -30,6 +30,15 @@ _SESSION_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
+from git_cloner import (  # noqa: E402
+    CloneManager,
+    ForeignManifestError,
+    GitCloneError,
+    HostNotAllowedError,
+    RepoTooLargeError,
+    UnsupportedLanguageError,
+    detect_manifests,
+)
 from oss_tool_runner import OSSToolRunner, OSSToolRunnerError  # noqa: E402
 from step6_tdd_green_phase import NVDSyncError  # noqa: E402
 from step7_5_pydantic_models import (  # noqa: E402
@@ -48,6 +57,7 @@ from step9_tdd_green_phase_orchestration import ScanOrchestrator, ScanResult  # 
 _oss_runner = OSSToolRunner()
 
 from ..dependencies import (  # noqa: E402
+    get_clone_manager,
     get_nvd_cache_dict,
     get_nvd_cache_manager,
     get_scan_orchestrator,
@@ -198,7 +208,41 @@ def _scan_result_to_response(result: ScanResult) -> ScanResponse:
         "and the SBOM is still produced."
     ),
     responses={
-        422: {"model": ErrorResponse, "description": "Validation error (invalid repo_path, format, or env)"},
+        401: {
+            "model": ErrorResponse,
+            "description": (
+                "INVALID_API_KEY — missing or wrong X-API-Key header "
+                "(only when the server is configured with an API_KEY env var)."
+            ),
+        },
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "REPO_NAME_CONFLICT — a clone with the same workspace name already "
+                "exists. Delete it first via DELETE /api/v1/repos/{name}."
+            ),
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": (
+                "Request rejected. One of:\n"
+                "- **INVALID_REPO_PATH** — `repo_path` does not exist on disk.\n"
+                "- **VALIDATION_ERROR** — request body is malformed or violates the "
+                "exactly-one-of(`repo_path`, `repo_url`) rule.\n"
+                "- **REPO_HOST_NOT_ALLOWED** — `repo_url` host is not on the allowlist "
+                "(only github.com / www.github.com accepted).\n"
+                "- **REPO_TOO_LARGE** — the cloned repo exceeded `SBOM_MAX_CLONE_BYTES` "
+                "(default 50 MB) and was deleted.\n"
+                "- **REPO_FOREIGN_MANIFEST** — repo contains dependency manifests for "
+                "ecosystems other than Python or JavaScript / TypeScript (e.g. `go.mod`, "
+                "`Cargo.toml`, `pom.xml`, `*.csproj`). The clone has been deleted.\n"
+                "- **REPO_UNSUPPORTED_LANGUAGE** — no Python or JavaScript / TypeScript "
+                "dependency manifest was found.\n"
+                "- **REPO_CLONE_FAILED** — `git clone` failed (network error, private "
+                "repo, bad URL, etc.). The clone has been cleaned up.\n"
+                "- **SCAN_TOOL_ERROR** — the underlying Syft scan failed."
+            ),
+        },
         500: {"model": ErrorResponse, "description": "Unexpected internal error during scan pipeline"},
     },
 )
@@ -208,6 +252,7 @@ async def create_scan(
     nvd_cache_dict: Dict[str, Any] = Depends(get_nvd_cache_dict),
     scan_store: Dict[str, Any] = Depends(get_scan_store),
     nvd_cache_manager=Depends(get_nvd_cache_manager),
+    clone_manager: CloneManager = Depends(get_clone_manager),
 ) -> ScanResponse:
     """
     Execute the full SBOM scan pipeline and return results.
@@ -220,20 +265,112 @@ async def create_scan(
     """
     vex_dicts = [vs.model_dump() for vs in request.vex_statements]
 
+    # Resolve repo_url -> a local clone path. The clone persists across the
+    # request lifecycle; remove it via DELETE /api/v1/repos/{name}.
+    if request.repo_url:
+        try:
+            cloned = clone_manager.clone(request.repo_url)
+        except HostNotAllowedError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_HOST_NOT_ALLOWED",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except RepoTooLargeError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_TOO_LARGE",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except ForeignManifestError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_FOREIGN_MANIFEST",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except UnsupportedLanguageError as exc:
+            return JSONResponse(
+                status_code=422,
+                content=ErrorResponse(
+                    error="REPO_UNSUPPORTED_LANGUAGE",
+                    message=str(exc),
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        except GitCloneError as exc:
+            msg = str(exc)
+            status = 409 if "already exists" in msg else 422
+            return JSONResponse(
+                status_code=status,
+                content=ErrorResponse(
+                    error="REPO_CLONE_FAILED" if status == 422 else "REPO_NAME_CONFLICT",
+                    message=msg,
+                    details={"repo_url": request.repo_url},
+                ).model_dump(),
+            )
+        scan_target_path = cloned.path
+        logger.info("Cloned repo from URL: name=%s path=%s", cloned.name, cloned.path)
+    else:
+        scan_target_path = request.repo_path
+
     # Validate repository path exists before invoking the OSS scanner, so we
     # return a precise INVALID_REPO_PATH 422 rather than a generic tool error.
-    if not os.path.isdir(request.repo_path):
+    if not os.path.isdir(scan_target_path):
         return JSONResponse(
             status_code=422,
             content=ErrorResponse(
                 error="INVALID_REPO_PATH",
-                message=f"Repository path does not exist or is not a directory: {request.repo_path}",
-                details={"repo_path": request.repo_path},
+                message=f"Repository path does not exist or is not a directory: {scan_target_path}",
+                details={"repo_path": scan_target_path},
+            ).model_dump(),
+        )
+
+    # Language gate. Applied here so that scans via `repo_path` are checked
+    # identically to clones via `repo_url` (the clone path already validated
+    # inside CloneManager.clone() but a second check is idempotent and keeps
+    # the contract uniform for any future clone-bypass code path).
+    supported, foreign = detect_manifests(scan_target_path)
+    if foreign:
+        sample = ", ".join(sorted(set(foreign))[:5])
+        more = f" (and {len(set(foreign)) - 5} more)" if len(set(foreign)) > 5 else ""
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="REPO_FOREIGN_MANIFEST",
+                message=(
+                    f"Repository contains dependency manifests for ecosystems "
+                    f"this tool does not support: {sample}{more}. Only Python "
+                    f"and JavaScript / TypeScript repos are scannable in this phase."
+                ),
+                details={"repo_path": scan_target_path, "foreign_manifests": sorted(set(foreign))},
+            ).model_dump(),
+        )
+    if not supported:
+        return JSONResponse(
+            status_code=422,
+            content=ErrorResponse(
+                error="REPO_UNSUPPORTED_LANGUAGE",
+                message=(
+                    "No Python or JavaScript / TypeScript dependency manifest "
+                    "was found in the repository. Looked for: requirements*.txt, "
+                    "setup.py, setup.cfg, pyproject.toml, Pipfile, poetry.lock, "
+                    "package.json, package-lock.json, yarn.lock, pnpm-lock.yaml."
+                ),
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
 
     try:
-        components = _oss_runner.scan(request.repo_path)
+        components = _oss_runner.scan(scan_target_path)
     except OSSToolRunnerError as exc:
         logger.warning("Syft scan failed: %s", exc)
         return JSONResponse(
@@ -241,14 +378,14 @@ async def create_scan(
             content=ErrorResponse(
                 error="SCAN_TOOL_ERROR",
                 message=str(exc),
-                details={"repo_path": request.repo_path},
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
     raw_tool_output: Dict[str, Any] = {"tool": "syft", "components": components}
 
     try:
         result: ScanResult = orchestrator.run(
-            repo_path=request.repo_path,
+            repo_path=scan_target_path,
             output_format=request.format.value,
             env=request.env.value,
             nvd_cache=nvd_cache_dict,
@@ -264,7 +401,7 @@ async def create_scan(
             content=ErrorResponse(
                 error="INVALID_REPO_PATH",
                 message=str(exc),
-                details={"repo_path": request.repo_path},
+                details={"repo_path": scan_target_path},
             ).model_dump(),
         )
     except NVDSyncError as exc:
@@ -308,6 +445,7 @@ async def create_scan(
         "back this with a persistent store."
     ),
     responses={
+        401: {"model": ErrorResponse, "description": "INVALID_API_KEY — missing or wrong X-API-Key header"},
         404: {"model": ErrorResponse, "description": "No scan result found for the given scan_id"},
         500: {"model": ErrorResponse, "description": "Internal error while retrieving the scan result"},
     },

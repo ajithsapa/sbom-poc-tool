@@ -5,11 +5,13 @@ Session: SBOM-20260409-sb01
 Generated: Step 11 — FastAPI API Generation
 
 Architecture:
-  POST /api/v1/scans          -> routers/scans.py  (ScanOrchestrator)
-  GET  /api/v1/scans/{id}     -> routers/scans.py  (in-memory store)
-  POST /api/v1/sync           -> routers/sync.py   (NVDSyncOrchestrator)
-  GET  /api/v1/cache/status   -> routers/cache.py  (NVDCacheManager)
-  GET  /api/v1/health         -> routers/health.py (liveness probe)
+  POST   /api/v1/scans          -> routers/scans.py  (ScanOrchestrator)
+  GET    /api/v1/scans/{id}     -> routers/scans.py  (in-memory store)
+  POST   /api/v1/sync           -> routers/sync.py   (NVDSyncOrchestrator)
+  GET    /api/v1/cache/status   -> routers/cache.py  (NVDCacheManager)
+  GET    /api/v1/health         -> routers/health.py (liveness probe)
+  GET    /api/v1/repos          -> routers/repos.py  (workspace inventory)
+  DELETE /api/v1/repos/{name}   -> routers/repos.py  (wipe a clone)
 
 Run with:
   uvicorn step11_api.main:app --reload --host 0.0.0.0 --port 8000
@@ -26,7 +28,7 @@ import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -37,7 +39,8 @@ if _SESSION_ROOT not in sys.path:
     sys.path.insert(0, _SESSION_ROOT)
 
 from .config import settings  # noqa: E402
-from .routers import cache, health, scans, sync  # noqa: E402
+from .dependencies import require_api_key  # noqa: E402
+from .routers import cache, health, repos, scans, sync  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -112,25 +115,37 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     # Routers
     # ------------------------------------------------------------------
+    # All routers except /health require the X-API-Key header when the
+    # API_KEY env var is set. When unset, auth is bypassed (POC dev mode).
+    auth = [Depends(require_api_key)]
     application.include_router(
         scans.router,
         prefix="/api/v1/scans",
         tags=["business-logic"],
+        dependencies=auth,
     )
     application.include_router(
         sync.router,
         prefix="/api/v1/sync",
         tags=["orchestration"],
+        dependencies=auth,
     )
     application.include_router(
         cache.router,
         prefix="/api/v1/cache",
         tags=["workflow-state"],
+        dependencies=auth,
     )
     application.include_router(
         health.router,
         prefix="/api/v1/health",
         tags=["workflow-state"],
+    )
+    application.include_router(
+        repos.router,
+        prefix="/api/v1/repos",
+        tags=["business-logic"],
+        dependencies=auth,
     )
 
     # ------------------------------------------------------------------

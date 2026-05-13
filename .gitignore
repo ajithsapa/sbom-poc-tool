@@ -18,3 +18,12 @@ step5_tdd_red_phase_batch2.py
 .DS_Store
 .idea/
 .vscode/
+
+# Git-clone workspace populated by POST /scans with repo_url
+clones/
+
+# Environment files — contain API_KEY and other secrets.
+# Commit only .env.template; never the actual .env.
+.env
+*.env
+!.env.template
