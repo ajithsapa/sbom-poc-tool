@@ -456,15 +456,20 @@ class OSSToolAdapter:
     def _normalise_syft(self, components: list) -> list:
         records = []
         for comp in components:
+            purl = comp.get("purl", "")
+            # Fall back to the PURL-ecosystem registry name (PyPI, GitHub, npm,
+            # crates.io, …) instead of the old hardcoded "PyPI", so non-PyPI
+            # components (github actions, npm, go) carry the correct supplier.
+            # See CycloneDXSerializer._PURL_REGISTRY_SUPPLIER for the mapping.
             supplier = (
                 comp.get("metadata", {}).get("Author")
                 or comp.get("metadata", {}).get("author")
-                or "PyPI"
+                or CycloneDXSerializer._supplier_from_purl(purl)
             )
             records.append({
                 "name": comp.get("name", ""),
                 "exact_version": comp.get("version", ""),
-                "purl": comp.get("purl", ""),
+                "purl": purl,
                 "supplier": supplier,
                 "cpe": comp.get("cpe"),
             })
@@ -1247,15 +1252,39 @@ class TestOSSToolAdapter:
         result = adapter.normalise({"tool": "syft", "components": [raw_syft_component]})
         assert result[0]["supplier"] == "LangChain, Inc."
 
-    def test_syft_missing_supplier_defaults_to_unknown(self, adapter):
-        component = {
+    def test_syft_missing_supplier_falls_back_to_purl_registry(self, adapter):
+        """When syft metadata.Author is absent, supplier is derived from the
+        PURL ecosystem (PyPI / npm / GitHub / crates.io / …) rather than a
+        hardcoded "PyPI" or "Unknown". Repairs the gap that left non-PyPI
+        components carrying the wrong supplier in API responses."""
+        # PyPI purl -> "PyPI"
+        comp_py = {
             "name": "somelib", "version": "1.0.0",
             "purl": "pkg:pypi/somelib@1.0.0",
-            "cpes": [],
-            "metadata": {},
+            "cpes": [], "metadata": {},
         }
-        result = adapter.normalise({"tool": "syft", "components": [component]})
-        assert result[0]["supplier"] == "Unknown"
+        assert adapter.normalise({"tool": "syft", "components": [comp_py]})[0]["supplier"] == "PyPI"
+        # GitHub Actions purl -> "GitHub"
+        comp_gha = {
+            "name": "actions/checkout", "version": "v4",
+            "purl": "pkg:github/actions/checkout@v4",
+            "cpes": [], "metadata": {},
+        }
+        assert adapter.normalise({"tool": "syft", "components": [comp_gha]})[0]["supplier"] == "GitHub"
+        # npm purl -> "npm"
+        comp_npm = {
+            "name": "lodash", "version": "4.17.21",
+            "purl": "pkg:npm/lodash@4.17.21",
+            "cpes": [], "metadata": {},
+        }
+        assert adapter.normalise({"tool": "syft", "components": [comp_npm]})[0]["supplier"] == "npm"
+        # Unknown ecosystem -> "Unknown"
+        comp_x = {
+            "name": "x", "version": "1.0",
+            "purl": "pkg:weirdecosystem/x@1.0",
+            "cpes": [], "metadata": {},
+        }
+        assert adapter.normalise({"tool": "syft", "components": [comp_x]})[0]["supplier"] == "Unknown"
 
     def test_trivy_normalise_returns_non_empty_list(self, adapter, raw_trivy_component):
         result = adapter.normalise({"tool": "trivy", "Results": [{"Packages": [raw_trivy_component]}]})
